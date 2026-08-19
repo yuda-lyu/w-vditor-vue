@@ -33,7 +33,7 @@ Add script for vue.
 
 Add script for w-vditor-vue, vditor has been bundled into the umd file(css included), only vue is required.
 ```alias
-<script src="https://cdn.jsdelivr.net/npm/w-vditor-vue@1.0.1/dist/w-vditor-vue.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/w-vditor-vue@1.0.2/dist/w-vditor-vue.umd.js"></script>
 ```
 
 > Note: vditor still downloads its runtime resources(lute, i18n, icons, katex...) from `https://unpkg.com/vditor@[version]` on demand, it can be redirected by `settings.cdn`.
