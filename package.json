@@ -1,11 +1,11 @@
 {
   "name": "w-vditor-vue",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "main": "dist/w-vditor-vue.umd.js",
   "dependencies": {
     "vditor": "^3.11.3",
-    "w-component-vue": "^2.5.13",
-    "wsemi": "^1.8.92"
+    "w-component-vue": "^2.5.17",
+    "wsemi": "^1.9.1"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "^5.0.8",
