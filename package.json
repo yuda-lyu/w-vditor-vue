@@ -1,11 +1,11 @@
 {
   "name": "w-vditor-vue",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "main": "dist/w-vditor-vue.umd.js",
   "dependencies": {
     "vditor": "^3.11.3",
-    "w-component-vue": "^2.5.21",
-    "wsemi": "^1.9.3"
+    "w-component-vue": "^2.5.26",
+    "wsemi": "^1.9.9"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "^5.0.8",
@@ -21,7 +21,7 @@
     "vue": "^2.7.16",
     "w-jsonview-tree": "^1.0.37",
     "w-package-tools": "^1.1.16",
-    "w-package-tools-e2e": "^1.0.0"
+    "w-package-tools-e2e": "^1.0.6"
   },
   "scripts": {
     "serve": "vue-cli-service serve",
