@@ -1,7 +1,5 @@
 <template>
     <div
-        :changeValue="changeValue"
-        :changeEditable="changeEditable"
         :changeShowPopper="changeShowPopper"
     >
 
@@ -9,7 +7,7 @@
 
         <div
             class="WVditorFix"
-            :style="`${loading?'heigh:0px; max-height:0px; overflow-y:hidden;':''}`"
+            :style="`${loading?'height:0px; max-height:0px; overflow-y:hidden;':''}`"
         >
 
             <div ref="divVditor"></div>
@@ -51,8 +49,8 @@ import genPm from 'wsemi/src/genPm.mjs'
 import replace from 'wsemi/src/replace.mjs'
 import waitFun from 'wsemi/src/waitFun.mjs'
 import isfun from 'wsemi/src/isfun.mjs'
+import isstr from 'wsemi/src/isstr.mjs'
 import isestr from 'wsemi/src/isestr.mjs'
-import iseobj from 'wsemi/src/iseobj.mjs'
 import isearr from 'wsemi/src/isearr.mjs'
 import isEle from 'wsemi/src/isEle.mjs'
 import convertColor from 'w-component-vue/src/js/convertColor.mjs'
@@ -76,6 +74,24 @@ function funCheckTrigger(mode, mmkey) {
 }
 function funRemoveTrigger(mode, mmkey) {
     pull(kpRespList[mode], mmkey)
+}
+
+
+//toMarkdown, 將value轉為寫入編輯器之markdown字串, null與undefined視為空字串, 其他非字串轉為字串
+function toMarkdown(v) {
+    if (v === null || v === undefined) {
+        return ''
+    }
+    if (!isstr(v)) {
+        return String(v)
+    }
+    return v
+}
+
+
+//normEcho, 比對回寫用之正規化, 換行符統一為\n並忽略結尾空白: vditor回拋值結尾帶換行, 父層以v-model.trim等回寫時結尾空白會被修整
+function normEcho(v) {
+    return toMarkdown(v).replace(/\r\n?/g, '\n').trimEnd()
 }
 
 
@@ -206,9 +222,11 @@ let def_settings = {
  * 另工具列export之PDF子項已固定移除，僅保留Markdown與HTML，因PDF匯出會於iframe內重建vditor環境，
  * 額外由settings.cdn取得dist/index.css、dist/method.min.js、js/i18n/zh_CN.js與hljs樣式共4項資源。
  *
- * @vue-prop {String} [value=''] 輸入markdown字串，可使用v-model雙向綁定，預設為''
+ * 組件定位為單一編輯者之輸入組件，與原生input相同：載入父層給予之資料並顯示、內容一變更即回拋、依editable鎖定編輯；回拋資料要同步至其他組件或上傳伺服器、上傳期間是否鎖定編輯、多組件共用資料之單向同步，皆由父層負責。多組件或多人同時編輯同一份資料(共編)須父層與組件層皆支援CRDT等協作機制，非僅由編輯器單方處理，本組件目前不支援共編。
+ *
+ * @vue-prop {String} [value=''] 輸入markdown字串，為編輯器內容之唯一來源(settings.value與settings.cache之內容於初始化完成時皆被value取代)，可使用v-model雙向綁定，亦可只給value並於input事件內回寫或不回寫，null與undefined視為''，其他非字串會轉為字串，預設為''。編輯器初始化完成時載入當下之value(含初始化期間父層才給予之資料)並作為復原起點；之後value變更時，若等於組件最後回拋之值或編輯器當前內容則為回寫而不重載(比對時忽略結尾空白與換行符\r\n、\n之差異，開頭空白之增減屬內容變更)，否則以value為準載入：使用者尚未編輯時變更後之內容即成為新的復原起點，已有編輯則保留復原歷史；載入時若編輯區持有焦點，游標不保留。換載另一份文件或需捨棄編輯時，請以key重建組件
  * @vue-prop {Number} [height=400] 輸入編輯器高度數字，單位為px，預設為400
- * @vue-prop {Object} [settings={}] 輸入vditor設定物件，會覆蓋組件內建預設值，內建預設值詳見原始碼處def_settings，各設定項詳見vditor官方文件
+ * @vue-prop {Object} [settings={}] 輸入vditor設定物件，會覆蓋組件內建預設值，內建預設值詳見原始碼處def_settings，各設定項詳見vditor官方文件。settings、height、keyHint、hintTimeDetect皆於建立編輯器時採用，之後變更不生效，需變更時請以key重建組件。其中settings.input由組件接管；settings.after會於編輯器初始化完成且已載入value後呼叫一次，組件於初始化完成前即銷毀時則不呼叫；settings.cache.enable為true時須同時給予settings.cache.id。lute或語系檔無法載入、settings.lang不合法、settings.cache缺id、或初始化完成時處理失敗時，組件會停留於載入圖示
  * @vue-prop {String} [settings.mode='wysiwyg'] 輸入編輯模式字串，可選'sv'(雙欄位)、'ir'(即時渲染)、'wysiwyg'(所見即所得)，預設為'wysiwyg'
  * @vue-prop {String} [settings.lang='zh_TW'] 輸入語系字串，可選'zh_CN'、'zh_TW'、'en_US'、'ja_JP'、'ko_KR'、'ru_RU'、'sv_SE'、'fr_FR'、'pt_BR'，預設為'zh_TW'
  * @vue-prop {String} [settings.theme='classic'] 輸入編輯器主題字串，可選'classic'、'dark'，預設為'classic'
@@ -217,15 +235,15 @@ let def_settings = {
  * @vue-prop {String} [settings.icon='ant'] 輸入工具列圖示組字串，可選'ant'、'material'，圖示檔由settings.cdn下載，預設為'ant'
  * @vue-prop {Array} [settings.toolbar=['詳見原始碼']] 輸入工具列項目陣列，預設詳見原始碼處def_settings->toolbar
  * @vue-prop {String} [settings.placeholder=''] 輸入編輯器無內容時顯示之提示字串，預設為''
- * @vue-prop {String|Array} [keyHint=''] 輸入打字時調用提示區之完整觸發字串或其陣列，例如給予'/ht'則輸入「/ht」即顯示提示區，亦可給予'@'、'/ht'等任意字串，或給予['/ht','/kw']陣列註冊多組，給予''則不啟用提示區，預設為''。觸發字串須位於行首或其前方為空白字元方會生效，且點選提示項目後該觸發字串會由內容中移除
- * @vue-prop {Number} [hintTimeDetect=100] 輸入偵測提示區之debounce時間數字，單位為ms，預設100。因vditor之編輯回調options.input為debounce機制，打字時每次按鍵皆重新計時，停止打字後才觸發，而提示區偵測與value回拋皆由該回調驅動，故此值即為打完keyHint後至提示區出現之延遲，亦為v-model同步之延遲；vditor原生預設為800ms，另因其同時決定undo還原點之合併粒度，給予過小值會使undo變得瑣碎
+ * @vue-prop {String|Array} [keyHint=''] 輸入打字時調用提示區之完整觸發字串或其陣列，例如給予'/ht'則輸入「/ht」即顯示提示區，亦可給予'@'、'/ht'等任意字串，或給予['/ht','/kw']陣列註冊多組，給予''則不啟用提示區，預設為''。觸發字串須位於行首或其前方為空白字元方會生效，且點選提示項目後會移除游標前本次輸入之觸發字串再插入(游標已移離觸發字串時則只插入)
+ * @vue-prop {Number} [hintTimeDetect=100] 輸入偵測提示區之debounce時間數字，單位為ms，預設100。因vditor之編輯回調options.input為debounce機制，打字時每次按鍵皆重新計時，停止打字後才觸發，而提示區偵測與value回拋皆由該回調驅動，故此值即為打完keyHint後至提示區出現之延遲，亦為v-model同步之延遲；vditor原生預設為800ms，另因其同時決定undo還原點之合併粒度，給予過小值會使undo變得瑣碎。sv模式之options.input為每次輸入即同步觸發，提示區偵測與v-model同步不受此值影響
  * @vue-prop {String} [hintBackgroundColor='#fff'] 輸入提示窗背景顏色字串，預設'#fff'
  * @vue-prop {Boolean} [hintShadow=true] 輸入提示窗是否顯示陰影布林值，預設true
  * @vue-prop {String} [hintShadowStyle='0 5px 5px -3px rgba(0,0,0,.2), 0 8px 10px 1px rgba(0,0,0,.14), 0 3px 14px 2px rgba(0,0,0,.12)'] 輸入提示窗陰影樣式字串，預設'0 5px 5px -3px rgba(0,0,0,.2), 0 8px 10px 1px rgba(0,0,0,.14), 0 3px 14px 2px rgba(0,0,0,.12)'
  * @vue-prop {Number} [cmpZIndex=3000] 輸入提示窗使用z-index數字，預設3000
- * @vue-prop {Boolean} [editable=true] 輸入是否為編輯模式布林值，給予false則編輯器為唯讀，預設true
- * @vue-event {String} input 當使用者於編輯器內輸入文字，或由提示區點選插入內容時發射，帶出當前markdown字串，供v-model接收
- * @vue-slot {Object} content 提示區內容之渲染slot，需搭配keyHint使用，slot props為{ hint, funInsert, funHide }，hint為當前觸發之keyHint字串，funInsert(v)為插入字串v至編輯器游標處之函數，funHide()為隱藏提示區之函數
+ * @vue-prop {Boolean} [editable=true] 輸入是否為編輯模式布林值，給予false則編輯器為唯讀，可隨時切換(例如父層上傳資料期間鎖定編輯)，預設true。唯讀期間組件維持編輯區不可編輯、編輯類工具列與復原重做停用、編輯區失焦並關閉提示區，且攔截編輯區內核取方塊、圖片與內容下方空白處之點擊，焦點位於編輯區內(例如以Tab鍵移入)時其按鍵不交由vditor處理亦不往外傳遞(保留Tab移動焦點、捲動、開啟連結、複製等瀏覽器預設行為)，使用者無法改動內容；唯讀期間父層仍可變更value；鎖定前之最後輸入可能於鎖定後才回拋
+ * @vue-event {String} input 編輯器內容變更時發射(使用者輸入、刪除、貼上、工具列操作、復原或重做，或由提示區點選插入內容)，帶出當前markdown字串，供v-model接收；wysiwyg與ir模式多數輸入於停止輸入hintTimeDetect毫秒後發射，sv模式每次輸入即發射；組件銷毀時尚未發射之最後輸入不再回拋
+ * @vue-slot {Object} content 提示區內容之渲染slot，需搭配keyHint使用，slot props為{ hint, funInsert, funHide }，hint為當前觸發之keyHint字串，funInsert(v)為插入v至編輯器游標處之函數(v以HTML片段插入，含使用者輸入等不可信資料時須由呼叫端跳脫；唯讀或編輯器未就緒時不插入)，funHide()為隱藏提示區之函數
  */
 export default {
     directives: {
@@ -283,8 +301,13 @@ export default {
     data: function() {
         return {
 
-            loading: true,
-            disposal: false,
+            //stage, 組件生命週期階段(唯一狀態來源):
+            //created: 已建立實例, 尚未建立編輯器
+            //creating: 已掛載並建立vditor, 等待語系檔與lute載入, 此時編輯器尚不可寫入
+            //ready: vditor初始化完成(after回調)且已載入value, 可編輯與載入value
+            //failed: vditor已初始化完成但組件就緒處理失敗, 維持載入圖示且不可寫入, 銷毀時仍須銷毀vditor
+            //destroyed: 組件已銷毀(或於編輯器初始化完成前即銷毀)
+            stage: 'created',
 
             mmkey: genID(), //beforeMount內無法變更data, mounted內會晚於computed, 故優先放於data生成
             // mmkey: (() => {
@@ -302,18 +325,28 @@ export default {
             triggerWidth: null,
             contentStyle: '',
 
-            contentEditor: null,
-
             showPopper: false,
             placement: 'bottom-start', //定位左下
             placementDistX: 0,
             placementDistY: -15,
 
-            valueTrans: '',
-
             useHint: '',
 
         }
+    },
+    created: function() {
+        //非畫面狀態之實例屬性, 不放data以免被Vue觀察(vditor實例若為響應式會被深度觀察)
+
+        let vo = this
+
+        vo.contentEditor = null //vditor實例
+        vo.valueEmittedLast = null //最後回拋之值, 父層回寫該值時不重載, null代表載入後尚未回拋
+        vo.valueLoadedMd = '' //上次載入value後編輯器之內容, 供判斷使用者是否已編輯(含尚未回拋之輸入)
+        vo.editedAfterLoad = false //自上次載入value後使用者是否已編輯(由input回呼設定, 保留歷史之載入亦設定), 供父層變更value時判斷是否重設復原起點
+        vo.lockObserver = null //唯讀期間監看工具列與編輯區之MutationObserver
+        vo.lockTypes = [] //鎖定當下已停用之工具列項目, 供唯讀期間檢查是否被重新啟用
+        vo.fLockGuard = null //唯讀期間攔截vditor於編輯區之點擊與鍵盤處理之監聽函數
+
     },
     mounted: function() {
         //console.log('mounted')
@@ -327,9 +360,9 @@ export default {
                 return vo.$el !== undefined
             })
 
-            //wait divVditor, 因loading=false之後才能開始顯示divVditor, 故須等待divVditor是否出現, 組件銷毀時divVditor已被移除, 亦須解除等待
+            //wait divVditor, 組件銷毀時divVditor已被移除, 亦須解除等待
             await waitFun(() => {
-                if (vo.disposal) {
+                if (vo.stage === 'destroyed') {
                     return true
                 }
                 let ele = get(vo, '$refs.divVditor')
@@ -337,7 +370,7 @@ export default {
             })
 
             //check, 組件已銷毀(如彈窗於編輯器初始化完成前被關閉)時跳出, 避免於銷毀後建立Vditor實例
-            if (vo.disposal) {
+            if (vo.stage === 'destroyed') {
                 return
             }
 
@@ -345,41 +378,35 @@ export default {
             let divVditor = vo.$refs.divVditor
             // console.log('divVditor', divVditor)
 
-            //contentEditor
-            vo.contentEditor = new Vditor(divVditor, vo.useSettings)
-            // console.log('contentEditor', vo.contentEditor)
+            //settings, 快照建構時採用之設定, 呼叫端自帶之settings.after由組件於就緒後代為呼叫
+            let settings = vo.useSettings
+            let afterUser = get(settings, 'after')
 
-            //wait contentEditor, 因new Vditor後會需一小段時間初始化, 故須等待vditor來判斷vditor是否初始化完成, 組件銷毀時contentEditor會被設null, 亦須解除等待
-            await waitFun(() => {
-                // let getCurrentMode = get(vo, 'contentEditor.getCurrentMode') //因contentEditor.getCurrentMode是原型已為function, 故無法用此做判斷
-                // return isfun(getCurrentMode)
-                if (vo.disposal) {
-                    return true
-                }
-                let v = get(vo, 'contentEditor.vditor')
-                return iseobj(v)
+            //stage, 建立vditor, 等待其初始化完成
+            vo.stage = 'creating'
+
+            //contentEditor, 以vditor之after回調為就緒點:
+            //vditor未給settings.i18n時須先非同步載入語系檔才建立vditor物件, 之後一律再非同步載入lute, 載入後才initUI並呼叫after,
+            //若僅偵測vditor物件存在即寫入內容, 早於lute時會拋錯而使編輯器空白, 晚於initUI時空白已先進入復原堆疊而使按復原即清空內容
+            //after由vditor於lute載入後之Promise內呼叫, 故於建構式回傳後才會觸發, 此時editor已賦值
+            let editor = new Vditor(divVditor, {
+                ...settings,
+                after: () => {
+                    //onEditorReady內錯誤須於此接住, 否則會中斷vditor於after之後載入工具列圖示
+                    try {
+                        vo.onEditorReady(editor, afterUser)
+                    }
+                    catch (err) {
+                        console.log(err)
+                        //stage, 就緒處理失敗時vditor已初始化完成, 標記failed使銷毀時仍銷毀vditor
+                        if (vo.stage === 'creating') {
+                            vo.stage = 'failed'
+                        }
+                    }
+                },
             })
-            // console.log(`vo.contentEditor.getCurrentMode()`, vo.contentEditor.getCurrentMode())
-
-            //check, 組件已銷毀(如彈窗於編輯器初始化完成前被關閉)時跳出, 避免呼叫contentEditor.setValue報錯
-            if (vo.disposal) {
-                return
-            }
-
-            //removeExportPdf, 於toolbar渲染完成後移除export之PDF子項
-            vo.removeExportPdf()
-
-            //loading, 組件不依照loading顯隱, loading為依賴、組件完成載入、組件初始化後才改為false
-            vo.loading = false
-
-            //update valueTrans, 於mounted進行第1次賦值觸發, 故直接更新valueTrans, 避免emit出去再進來更新
-            vo.valueTrans = vo.value
-
-            //setValue, 於mounted進行第1次賦值, 之後給computed偵測修改
-            vo.contentEditor.setValue(vo.value)
-
-            // //emit, 於組件內初始化第一次觸發故不須emit
-            // vo.$emit('input', value)
+            vo.contentEditor = editor
+            // console.log('contentEditor', vo.contentEditor)
 
         }
 
@@ -388,6 +415,39 @@ export default {
             .catch((err) => {
                 console.log(err)
             })
+
+        //fLockGuard, 唯讀期間攔截vditor於編輯區之點擊與鍵盤處理, vditor之點擊與按鍵處理皆不檢查唯讀:
+        //點擊核取方塊會勾選並回拋(vditor/src/ts/wysiwyg/index.ts:412-423、ir/index.ts:140-147), 點擊圖片會開啟可編輯之圖片彈窗(wysiwyg/index.ts:427-433),
+        //點擊內容下方空白處會新增空段落(wysiwyg/index.ts:450-463、ir/index.ts:191-204, 解鎖後之輸入會落入該段);
+        //焦點位於編輯區內(以Tab鍵移入編輯區, 或點擊核取方塊、連結)時, 按鍵處理與快捷鍵會改動內容並回拋(vditor/src/ts/util/editorCommonEvent.ts:116-230)
+        vo.fLockGuard = (e) => {
+
+            //check
+            if (vo.stage !== 'ready' || vo.editable) {
+                return
+            }
+            let ele = vo.getEditorElement()
+            let t = e.target
+            if (!isEle(ele) || !isEle(t) || !ele.contains(t)) {
+                return
+            }
+
+            //keydown、keyup, 不交由vditor處理, 不阻止瀏覽器預設行為(Tab移動焦點、方向鍵捲動、Enter開啟連結、複製)
+            if (e.type !== 'click') {
+                e.stopPropagation()
+                return
+            }
+
+            //click, 核取方塊(含鍵盤空白鍵觸發之click)、圖片、內容下方空白處(點擊對象為編輯區本身)不交由vditor處理, 連結照常由vditor開啟
+            if (t.tagName === 'INPUT' || t.tagName === 'IMG' || t === ele) {
+                e.preventDefault()
+                e.stopPropagation()
+            }
+
+        }
+        each(['click', 'keydown', 'keyup'], (k) => {
+            vo.$el.addEventListener(k, vo.fLockGuard, true)
+        })
 
         //BuildPopper
         let keyShow = 'showPopper'
@@ -420,12 +480,29 @@ export default {
 
         let vo = this
 
-        //disposal, 供背景async流程(mounted core、relaEditable core)偵測解除等待, 不可用contentEditor===null判別已銷毀, 因contentEditor初始即null無法區分尚未建立與已銷毀
-        vo.disposal = true
+        //stage, 銷毀前之階段供判斷可否立即銷毀vditor
+        let stagePrev = vo.stage
+        vo.stage = 'destroyed'
 
-        //destroy
+        //unwatchLock, 停止唯讀監看
+        vo.unwatchLock()
+
+        //fLockGuard
+        if (vo.fLockGuard) {
+            each(['click', 'keydown', 'keyup'], (k) => {
+                vo.$el.removeEventListener(k, vo.fLockGuard, true)
+            })
+            vo.fLockGuard = null
+        }
+
+        //destroy, 須vditor初始化完成(ready或failed)才可完整銷毀:
+        //語系檔未載入前vditor尚無vditor物件, 此時destroy會因讀取vditor.element而報錯;
+        //lute未載入前destroy雖可執行, 但vditor於lute載入後仍會initUI並綁定window之resize監聽而殘留,
+        //故creating階段改由onEditorReady於初始化完成時補做銷毀
         if (vo.contentEditor) {
-            vo.contentEditor.destroy()
+            if (stagePrev === 'ready' || stagePrev === 'failed') {
+                vo.contentEditor.destroy()
+            }
             vo.contentEditor = null
         }
 
@@ -435,7 +512,39 @@ export default {
         }
 
     },
+    watch: {
+        //裁決(2026-10-04), 組件定位與權責, 勿因父層之個別需求而偏離:
+        //本組件為單一編輯者之輸入組件, 與原生input及CKEditor、TinyMCE、Quill之官方Vue封裝同類, 只負責三件事:
+        //1.編輯器初始化完成時載入父層給予之value並顯示(之後父層再給新資料則以value為準載入)
+        //2.內容一變更即回拋input
+        //3.依editable鎖定編輯, 鎖定期間工具列、編輯區與提示區之唯讀一致性由本組件負責維持
+        //回拋資料要同步至其他組件或上傳伺服器、上傳期間鎖定編輯(給editable=false)、多組件共用資料之單向同步, 皆屬父層責任;
+        //父層回寫只要等於最後回拋值或編輯器當前內容即視為回寫(含延後回寫), 回寫到已被更新回拋取代之舊值則以value為準載入,
+        //延遲或亂序回寫之協調屬父層責任, 本組件不推測回寫來源與先後, 勿於本組件加入回拋紀錄、時間窗等協調邏輯
+        //多組件或多人同時編輯同一份資料(共編)須父層與組件層皆支援CRDT等協作機制方能達成, 非僅由編輯器組件單方處理:
+        //父層須提供協作機制並嚴格控制資料之收送, 組件須提供對應之變更粒度與套用遠端變更之介面;
+        //本組件目前為單一編輯者之定位而不支援共編, 需共編時應另行規劃父層與組件之CRDT支援, 不可以組件內之推測邏輯代替
+
+        value: function() {
+            //父層變更value, 只在value真的變更時觸發(Vue於值相同時不通知)
+            let vo = this
+            vo.relaValue()
+        },
+
+        editable: function() {
+            //父層變更editable(例如上傳資料期間鎖定編輯)
+            let vo = this
+            vo.applyEditable()
+        },
+
+    },
     computed: {
+
+        loading: function() {
+            //loading, 編輯器初始化完成前顯示載入圖示並隱藏編輯器
+            let vo = this
+            return vo.stage !== 'ready'
+        },
 
         keyHints: function() {
             let vo = this
@@ -491,54 +600,35 @@ export default {
                 }
                 extend.push(ht)
             })
-            st.hint.extend = extend
+            //hint, 以新物件寫入extend, 避免改寫呼叫端settings.hint或模組層def_settings.hint(vditor亦會往extend陣列push項目, vditor/src/ts/hint/index.ts:22)
+            st.hint = { ...st.hint, extend }
             // console.log('st.hint.extend', st.hint.extend)
 
             //add input
             st.input = (value) => {
                 // console.log(vo.mmkey, 'input', value)
 
-                //update valueTrans, 由組件內input觸發, 故直接更新valueTrans, 避免emit出去再進來更新
-                vo.valueTrans = value
+                //check, 非ready時不處理, vditor之防抖回調可能於組件銷毀後才觸發
+                if (vo.stage !== 'ready') {
+                    return
+                }
+
+                //editedAfterLoad, input皆由使用者操作(輸入、復原、重做、工具列、提示區插入)觸發; 鎖定前之最後輸入可能於鎖定後才觸發, 照常回拋
+                vo.editedAfterLoad = true
+
+                //valueEmittedLast, 父層回寫此值時不重載
+                vo.valueEmittedLast = value
 
                 //detectAndShowHint
                 vo.detectAndShowHint(value)
 
-                //emit
+                //emit, 內容一變更即回拋; 裁決(2026-10-04): 回拋後資料之去向(同步至其他組件、上傳伺服器)與上傳期間之鎖定(editable)皆由父層負責
                 vo.$emit('input', value)
 
             }
 
             // console.log('st', st)
             return st
-        },
-
-        changeValue: function() {
-            // console.log('computed changeValue')
-
-            let vo = this
-
-            //trigger
-            let value = vo.value
-
-            //relaValue
-            vo.relaValue(value)
-
-            return ''
-        },
-
-        changeEditable: function() {
-            //console.log('computed changeEditable')
-
-            let vo = this
-
-            //trigger
-            let editable = vo.editable
-
-            //relaEditable
-            vo.relaEditable(editable)
-
-            return ''
         },
 
         changeShowPopper: function () {
@@ -600,63 +690,220 @@ export default {
     methods: {
 
         relaValue: function() {
+            //父層變更value時由watch呼叫
+
+            let vo = this
+
+            //check, 編輯器未就緒時不處理, 就緒時onEditorReady會載入當下之value
+            if (vo.stage !== 'ready') {
+                return
+            }
+
+            //check, 父層回寫(v-model或於input事件內回寫)之值不重載
+            if (vo.isEcho(vo.value)) {
+                return
+            }
+
+            //hideHint, 整份內容將被取代, 開啟中之提示區所記錄之插入位置已失效
+            vo.hideHint()
+
+            //loadValue, 父層給予新資料(例如後端資料於就緒後才到), 以value為準載入:
+            //使用者自上次載入後尚未編輯時(含尚未回拋之輸入), 新資料即成為復原起點, 避免按復原回到變更前之內容(例如資料到達前之空白);
+            //已有編輯時保留復原歷史, 避免清除使用者之編輯紀錄; 比對經正規化, 避免切換編輯模式之序列化差異誤判
+            let edited = vo.editedAfterLoad || normEcho(vo.contentEditor.getValue()) !== normEcho(vo.valueLoadedMd)
+            vo.loadValue(!edited)
+
+            //唯讀期間載入時, vditor於延後寫入復原堆疊時會重新啟用復原鈕, 由唯讀監看(watchLock)改回唯讀
+
+        },
+
+        isEcho: function(value) {
+            //判斷value是否為父層回寫: 等於最後回拋之值(含使用者回拋後又輸入而尚未回拋時之回寫), 或等於編輯器當前內容(含載入後尚未回拋時之回寫), 比對忽略結尾空白與換行符差異
+            //裁決(2026-10-04): 只以最後回拋值及當前內容判斷, 不保留多筆回拋紀錄、不設時效;
+            //父層延遲或亂序回寫之協調屬父層責任(見watch處之裁決), 其值不等於上述二者時即以value為準載入
+
+            let vo = this
+
+            //先比對最後回拋值(同步回寫皆屬此), 不符才取編輯器內容比對, 避免每次回寫皆以lute轉換全文
+            let c = normEcho(value)
+            if (vo.valueEmittedLast !== null && c === normEcho(vo.valueEmittedLast)) {
+                return true
+            }
+            if (c === normEcho(vo.contentEditor.getValue())) {
+                return true
+            }
+            return false
+        },
+
+        onEditorReady: function(editor, afterUser) {
+            //vditor完成初始化(lute已載入且initUI完成)時由after回調呼叫
+
+            let vo = this
+
+            //check, 組件已於vditor完成初始化前銷毀(beforeDestroy當時無法完整銷毀), 於此補做銷毀, 呼叫端之after不呼叫
+            if (vo.stage === 'destroyed') {
+                editor.destroy()
+                return
+            }
+
+            //removeExportPdf, 於toolbar渲染完成後移除export之PDF子項
+            vo.removeExportPdf()
+
+            //loadValue, 載入當下之value(含creating期間父層才給予之資料)並作為復原起點
+            vo.loadValue(true)
+
+            //stage, 就緒
+            vo.stage = 'ready'
+
+            //applyEditable, 唯讀時於此同步套用(含creating期間父層才給予之editable), initUI會重新啟用工具列; 可編輯時沿用vditor初始化後之狀態
+            if (!vo.editable) {
+                vo.applyEditable()
+            }
+
+            //afterUser, 呼叫端自帶之settings.after, 依vditor原呼叫方式以其合併後之設定為接收者
+            if (isfun(afterUser)) {
+                afterUser.call(get(editor, 'vditor.options'))
+            }
+
+        },
+
+        loadValue: function(clearStack) {
+            //以當前value載入編輯器, 供初始化與父層變更value共用
+
+            let vo = this
+
+            //value, null與undefined視為空字串, 其他非字串轉為字串, 避免vditor將null轉為字面文字顯示並回拋
+            let value = toMarkdown(vo.value)
+
+            //setValue, clearStack=true時清空復原堆疊並以載入之內容為復原起點
+            vo.contentEditor.setValue(value, clearStack)
+
+            //紀錄載入後內容(經lute正規化), 載入後尚未回拋
+            vo.valueLoadedMd = vo.contentEditor.getValue()
+            vo.valueEmittedLast = null
+
+            //editedAfterLoad, 重設復原起點時歸零; 保留復原歷史時堆疊內含使用者之編輯, 之後之載入亦須保留
+            vo.editedAfterLoad = !clearStack
+
+        },
+
+        applyEditable: function() {
+            //依editable套用唯讀或可編輯, 供就緒時與父層變更editable時共用
+
+            let vo = this
+
+            //check, 編輯器未就緒時不處理, 就緒時onEditorReady會套用當下之editable
+            if (vo.stage !== 'ready') {
+                return
+            }
+
+            //enable
+            if (vo.editable) {
+                vo.unwatchLock()
+                vo.contentEditor.enable()
+                return
+            }
+
+            //disabled
+            vo.contentEditor.disabled()
+
+            //blur, 焦點位於編輯區內(編輯區本身或其內之連結、核取方塊)時使其失焦, 鎖定後之鍵盤操作回到頁面; 唯讀期間編輯區內之按鍵另由fLockGuard攔截
+            let ele = vo.getEditorElement()
+            let ae = document.activeElement
+            if (isEle(ele) && isEle(ae) && ele.contains(ae)) {
+                ae.blur()
+            }
+
+            //hideHint, 唯讀期間不可經提示區插入
+            vo.hideHint()
+
+            //watchLock, 唯讀期間維持唯讀
+            vo.watchLock()
+
+        },
+
+        watchLock: function() {
+            //唯讀期間以MutationObserver監看組件內之class與contenteditable, 被重新啟用時即改回唯讀
+
+            let vo = this
+
+            //lockTypes, 鎖定當下已停用之工具列項目
+            vo.lockTypes = [...vo.$el.querySelectorAll('.vditor-toolbar button[data-type].vditor-menu--disabled')].map((ele) => {
+                return ele.getAttribute('data-type')
+            })
+
+            //check
+            if (vo.lockObserver) {
+                return
+            }
+
+            //lockObserver, 回呼於同一微任務檢查點執行, 畫面上不會出現被重新啟用之狀態
+            vo.lockObserver = new MutationObserver(() => {
+                vo.enforceLock()
+            })
+            vo.lockObserver.observe(vo.$el, { subtree: true, attributes: true, attributeFilter: ['class', 'contenteditable'] })
+
+        },
+
+        unwatchLock: function() {
+            //停止唯讀監看
+
+            let vo = this
+
+            if (vo.lockObserver) {
+                vo.lockObserver.disconnect()
+                vo.lockObserver = null
+            }
+            vo.lockTypes = []
+
+        },
+
+        enforceLock: function() {
+            //唯讀期間維持唯讀: vditor於延後寫入復原堆疊時一律啟用復原鈕(vditor/src/ts/undo/index.ts:130-132),
+            //切換編輯模式時啟用編輯類工具列與新模式之編輯區(vditor/src/ts/toolbar/EditMode.ts:44), 皆於此改回唯讀
 
             let vo = this
 
             //check
-            //避免使用waitFun, 因多組件value非同步更新, 會導致打字時或hint時連動觸發更新value問題
-            //第1次調用value為空字串, 第2次loading可能為true, 此處統一處理loading=false情形
-            if (vo.loading) {
+            if (vo.stage !== 'ready' || vo.editable) {
                 return
             }
 
-            //check, 避免多組件時使用hint會反覆觸發
-            if (vo.value === vo.valueTrans) {
-                return
+            //editableEle, 當前模式之編輯區是否可編輯
+            let ele = vo.getEditorElement()
+            let editableEle = isEle(ele) && ele.getAttribute('contenteditable') !== 'false'
+
+            //enabledBtn, 鎖定當下已停用之工具列項目是否被重新啟用
+            let enabledBtn = vo.lockTypes.some((t) => {
+                let b = vo.$el.querySelector(`.vditor-toolbar button[data-type="${t}"]`)
+                return isEle(b) && !b.classList.contains('vditor-menu--disabled')
+            })
+
+            //disabled, 已全部停用時不呼叫, 避免其屬性寫入再觸發監看
+            if (editableEle || enabledBtn) {
+                vo.contentEditor.disabled()
             }
-
-            //update valueTrans, 由組件外變更value觸發, 故須再另外儲存至valueTrans
-            vo.valueTrans = vo.value
-
-            //setValue
-            vo.contentEditor.setValue(vo.value)
-
-            // //emit, 由外部變更value觸發故不須emit
-            // vo.$emit('input', value)
 
         },
 
-        relaEditable: function() {
+        hideHint: function() {
+            //關閉提示區: BuildPopper之updateValue於唯讀時不動作(w-component-vue/src/js/buildPopper.mjs:465),
+            //故直接設定showPopper後以displayPopper同步popper狀態(唯讀或showPopper=false時即隱藏, buildPopper.mjs:414)
 
             let vo = this
 
-            async function core() {
-
-                //wait, 組件銷毀時loading不會再變false, 亦須解除等待
-                await waitFun(() => {
-                    return !vo.loading || vo.disposal
-                })
-
-                //check, 組件已銷毀(如彈窗於編輯器初始化完成前被關閉)時跳出, 避免呼叫contentEditor.enable報錯
-                if (vo.contentEditor === null || vo.disposal) {
-                    return
-                }
-
-                //editable
-                if (vo.editable) {
-                    vo.contentEditor.enable()
-                }
-                else {
-                    vo.contentEditor.disabled()
-                }
-
+            //check
+            if (!vo.showPopper) {
+                return
             }
 
-            //core
-            core()
-                .catch((err) => {
-                    console.log(err)
-                })
+            //hide
+            vo.showPopper = false
+            vo.useHint = ''
+            let f = get(vo, 'bp.displayPopper')
+            if (isfun(f)) {
+                vo.bp.displayPopper('hideHint')
+            }
 
         },
 
@@ -672,7 +919,7 @@ export default {
                 n++
 
                 //check, 組件已銷毀時解除
-                if (vo.disposal) {
+                if (vo.stage === 'destroyed') {
                     clearInterval(t)
                     return
                 }
@@ -725,6 +972,13 @@ export default {
             let t = setInterval(() => {
                 n++
 
+                //check, 非ready(例如組件已銷毀)時停止輪詢, 回傳null由呼叫端略過
+                if (vo.stage !== 'ready') {
+                    clearInterval(t)
+                    pm.resolve(null)
+                    return
+                }
+
                 //funGetDivTrigger
                 let ele = vo.funGetDivTrigger()
 
@@ -770,6 +1024,11 @@ export default {
             vo.findAnchor()
                 .then((divTrigger) => {
                     // console.log('divTrigger', divTrigger)
+
+                    //check, 輪詢期間組件已銷毀或已被鎖定時不顯示提示區
+                    if (!isEle(divTrigger) || vo.stage !== 'ready' || !vo.editable) {
+                        return
+                    }
 
                     //check
                     if (divTrigger.style.display === 'none') {
@@ -829,40 +1088,91 @@ export default {
             }
         },
 
-        insertValue: function(v, from) {
+        getEditorElement: function() {
+            //當前編輯模式之編輯區元素
             let vo = this
-            let f = get(vo, 'contentEditor.insertValue')
-            if (isfun(f)) {
+            let mode = vo.contentEditor.getCurrentMode()
+            return get(vo, ['contentEditor', 'vditor', mode, 'element'], null)
+        },
 
-                //insertValue
-                vo.contentEditor.insertValue(v)
+        getHintRange: function() {
+            //取得提示區之插入位置: 提示區開啟時編輯區已失焦, 文件選取範圍仍位於編輯區內時取之, 否則取vditor於失焦時保存之範圍(vditor/src/ts/util/editorCommonEvent.ts:52)
 
-                //取得當前value
-                let value = vo.contentEditor.getValue()
+            let vo = this
 
-                //移除觸發用之keyHint字串
-                //useHint為本次實際觸發之keyHint(由divTrigger內tar元素之tpht屬性取得), 只移除它,
-                //不可迭代全部keyHints, 否則多keyHint時會誤刪內文中其他keyHint之字樣
-                //另僅移除最後一次出現者, 因該處才是本次所打入的, 不可用replaceAll以免誤刪內文中相同字串
-                // console.log('value(ori)', value)
-                if (isestr(vo.useHint)) {
-                    let ind = value.lastIndexOf(vo.useHint)
-                    if (ind >= 0) {
-                        value = value.substring(0, ind) + value.substring(ind + vo.useHint.length)
-                    }
-                }
-                // console.log('value(replace)', value)
-
-                //update valueTrans, 由組件內insertValue觸發, 故直接更新valueTrans, 避免emit出去再進來更新
-                vo.valueTrans = vo.value
-
-                //setValue
-                vo.contentEditor.setValue(value)
-
-                //emit
-                vo.$emit('input', value)
-
+            let ele = vo.getEditorElement()
+            if (!isEle(ele)) {
+                return null
             }
+            let sel = window.getSelection()
+            if (sel && sel.rangeCount > 0 && ele.contains(sel.getRangeAt(0).startContainer)) {
+                return sel.getRangeAt(0).cloneRange()
+            }
+            let r = get(vo, ['contentEditor', 'vditor', vo.contentEditor.getCurrentMode(), 'range'], null)
+            if (r && ele.contains(r.startContainer)) {
+                return r.cloneRange()
+            }
+            return null
+        },
+
+        removeHintTrigger: function(range) {
+            //移除插入位置前本次輸入之觸發字串(同vditor自身提示之作法, vditor/src/ts/hint/index.ts:171-172), 回傳移除後之插入位置;
+            //只檢查游標前緊鄰之文字, 不以全文搜尋, 避免誤刪他處之相同字串(例如觸發字串為@而後文含email); 游標已移離觸發字串時回傳原位置而只插入
+
+            let vo = this
+
+            //check
+            if (!range || !range.collapsed || !isestr(vo.useHint)) {
+                return range
+            }
+
+            //node, 插入位置位於元素邊界時改取其前之文字節點
+            let node = range.startContainer
+            let off = range.startOffset
+            if (node.nodeType === 1 && off > 0 && node.childNodes[off - 1] && node.childNodes[off - 1].nodeType === 3) {
+                node = node.childNodes[off - 1]
+                off = node.data.length
+            }
+
+            //remove
+            let len = vo.useHint.length
+            if (node.nodeType === 3 && off >= len && node.data.substring(off - len, off) === vo.useHint) {
+                let r = document.createRange()
+                r.setStart(node, off - len)
+                r.setEnd(node, off)
+                r.deleteContents()
+                return r
+            }
+
+            return range
+        },
+
+        insertValue: function(v, from) {
+            //由提示區插入v, v以HTML片段插入(vditor/src/index.ts:278-280)
+
+            let vo = this
+
+            //check, 唯讀或編輯器未就緒時不插入並關閉提示區(提示區可能於鎖定前開啟, 或呼叫端於非同步流程後才呼叫funInsert)
+            if (vo.stage !== 'ready' || !vo.editable) {
+                vo.hideHint()
+                return
+            }
+
+            //range, 插入位置並移除其前本次輸入之觸發字串
+            let range = vo.removeHintTrigger(vo.getHintRange())
+
+            //selection, 將游標設於插入位置並聚焦編輯區, 供vditor於此插入且插入後可接續輸入
+            if (range) {
+                let ele = vo.getEditorElement()
+                ele.focus()
+                let sel = window.getSelection()
+                sel.removeAllRanges()
+                sel.addRange(range)
+            }
+
+            //insertValue, 由vditor插入並經其正常之輸入流程回拋(st.input內記錄最後回拋值與已編輯), 插入後游標位於插入內容之後
+            vo.contentEditor.insertValue(v)
+
         },
 
     },
