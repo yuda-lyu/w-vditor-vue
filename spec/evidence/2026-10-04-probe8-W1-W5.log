@@ -1,0 +1,11 @@
+[F8] W1
+{"wysiwyg:page":{"tabs":null,"activeAtCut":"BODY","mdChanged":false,"inputsAdded":0,"clip":"\"末段文字\"","logs":[]},"wysiwyg:tab":{"tabs":19,"activeAtCut":"INPUT(in-editor)","mdChanged":false,"inputsAdded":0,"clip":"\"末段文字\"","logs":[]},"ir:page":{"tabs":null,"activeAtCut":"BODY","mdChanged":false,"inputsAdded":0,"clip":"\"末段文字\"","logs":[]},"ir:tab":{"tabs":19,"activeAtCut":"INPUT(in-editor)","mdChanged":false,"inputsAdded":0,"clip":"\"末段文字\"","logs":[]},"sv:page":{"tabs":null,"activeAtCut":"BODY","mdChanged":false,"inputsAdded":0,"clip":"\"末段文字\"","logs":[]},"sv:tab":{"tabs":15,"activeAtCut":"PRE(in-editor)","mdChanged":false,"inputsAdded":0,"clip":"\"末段文字\"","logs":[]}}
+[F8] W2
+{"wysiwyg":{"tabs":19,"activeAtPaste":"INPUT(in-editor)","mdChanged":false,"inputsAdded":0,"logs":[]},"ir":{"tabs":19,"activeAtPaste":"INPUT(in-editor)","mdChanged":false,"inputsAdded":0,"logs":[]},"sv":{"tabs":15,"activeAtPaste":"PRE(in-editor)","mdChanged":false,"inputsAdded":0,"logs":[]}}
+[F8] W3
+{"ir":{"mdChanged":false,"inputsAdded":0,"logs":[]},"sv":{"mdChanged":false,"inputsAdded":0,"logs":[]}}
+[F8] W4
+{"hasLink":1,"linkOpened":"/tmp/probeInit/page2.html","hasImg":1,"mdChanged":false,"inputsAdded":0,"panelInputs":0,"active":"BODY","logs":[]}
+[F8] W5
+{"wysiwyg":{"tabs":19,"active":"PRE(in-editor)","scrolled":"0->269","docKeys":["Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab"],"mdChanged":false,"inputsAdded":0,"logs":[]},"ir":{"tabs":19,"active":"PRE(in-editor)","scrolled":"0->269","docKeys":["Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab"],"mdChanged":false,"inputsAdded":0,"logs":[]},"sv":{"tabs":15,"active":"PRE(in-editor)","scrolled":"0->269","docKeys":["Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab","Tab"],"mdChanged":false,"inputsAdded":0,"logs":[]}}
+EXIT 0

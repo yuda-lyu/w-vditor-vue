@@ -1,0 +1,8 @@
+invalid runin[null], set to 'browser'
+[BABEL] Note: The code generator has deoptimised the styling of C:\opensrc\開源-JS-403-7-w-vditor-vue\w-vditor-vue\node_modules\vditor\dist\index.js as it exceeds the max of 500KB.
+[final] base {"win":{"keydown":1},"doc":{"keydown":1}}
+[final] X2 comment=null i18n-download (open) {"injected":true,"mid":{"win.resize":1,"win.scroll":2},"ls":{"loading":true,"toolbarBuilt":false}}
+[final] X2 comment=null i18n-download (closed) {"leak":{"win.scroll":1},"errs":[],"after":0,"logs":[],"tips":["GET /node_modules/vditor/dist/js/i18n/zh_TW.js net::ERR_ABORTED 404 (N"]}
+[final] X3 value=1 (open) {"injected":true,"mid":{"win.resize":2,"win.scroll":2},"ls":{"loading":true,"toolbarBuilt":true}}
+[final] X3 value=1 (closed) {"leak":{"win.resize":1},"errs":[],"after":0,"logs":["[pageerror] n.preventDefault is not a function"],"tips":[]}
+EXIT

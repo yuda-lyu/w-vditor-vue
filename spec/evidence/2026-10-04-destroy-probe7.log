@@ -1,0 +1,10 @@
+invalid runin[null], set to 'browser'
+[BABEL] Note: The code generator has deoptimised the styling of C:\opensrc\開源-JS-403-7-w-vditor-vue\w-vditor-vue\node_modules\vditor\dist\index.js as it exceeds the max of 500KB.
+open#1 {"iconSvgs":1,"iconScripts":1,"headScripts":5}
+close#1 {"iconSvgs":1,"iconScripts":0,"headScripts":4}
+open#2 {"iconSvgs":2,"iconScripts":1,"headScripts":5}
+close#2 {"iconSvgs":2,"iconScripts":0,"headScripts":4}
+open#3 {"iconSvgs":3,"iconScripts":1,"headScripts":5}
+close#3 {"iconSvgs":3,"iconScripts":0,"headScripts":4}
+open#4 {"iconSvgs":4,"iconScripts":1,"headScripts":5}
+warnings []

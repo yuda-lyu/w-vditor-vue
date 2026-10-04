@@ -1,0 +1,6 @@
+browser 154.0.8037.95
+[F8] T1
+{"wysiwyg:tab-link":{"entry":20,"activeAfterUnlock":"BODY","emitted":0,"zAt":null,"lastHead":"\"\"","logs":[]},"wysiwyg:click-checkbox":{"entry":"INPUT(in-editor)","activeAfterUnlock":"INPUT(in-editor)","emitted":1,"zAt":8,"lastHead":"\"# 標題\\n\\n- Z[ ] 待辦一\\n\\n前文[連結](/tmp/probeInit/page2.html)後文\\n\\n末段文字\\n\"","logs":[]},"ir:click-checkbox":{"entry":"INPUT(in-editor)","activeAfterUnlock":"INPUT(in-editor)","emitted":1,"zAt":8,"lastHead":"\"# 標題\\n\\n- Z[ ]  待辦一\\n\\n前文[連結](/tmp/probeInit/page2.html)後文\\n\\n末段文字\"","logs":[]}}
+[F8] T2
+{"wysiwyg":{"entry":19,"tabsToLeave":1,"entry2":19,"activeAfterUnlock":"PRE(editor)","emitted":1,"zAt":2,"lastHead":"\"# Z標題\\n\\n第1段文字\\n\\n第2段文字\\n\\n第3段文字\\n\\n第4\"","logs":[]},"ir":{"entry":19,"tabsToLeave":1,"entry2":19,"activeAfterUnlock":"PRE(editor)","emitted":1,"zAt":2,"lastHead":"\"# Z標題\\n\\n第1段文字\\n\\n第2段文字\\n\\n第3段文字\\n\\n第4\"","logs":[]},"sv":{"entry":15,"tabsToLeave":1,"entry2":15,"activeAfterUnlock":"PRE(editor)","emitted":1,"zAt":0,"lastHead":"\"Z# 標題\\n\\n第1段文字\\n\\n第2段文字\\n\\n第3段文字\\n\\n第4\"","logs":[]}}
+EXIT 0

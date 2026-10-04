@@ -1,0 +1,9 @@
+invalid runin[null], set to 'browser'
+[BABEL] Note: The code generator has deoptimised the styling of C:\opensrc\開源-JS-403-7-w-vditor-vue\w-vditor-vue\node_modules\vditor\dist\index.js as it exceeds the max of 500KB.
+textarea-click {"before":1,"after":1,"after300":1,"types":["keydown"]}
+search-click {"before":1,"after":1,"after300":1,"types":["keydown"]}
+button-click-clear {"before":1,"after":1,"after300":1,"types":["keydown"]}
+textarea-click-then-button {"before":1,"after":1,"after300":1,"types":["keydown"]}
+waitUntilExist {"before":1,"after":14,"after300":14,"types":["keydown","mousemove","pointerdown","pointerup","touchstart","touchend","touchcancel","mousedown","mouseup","click","auxclick","dblclick","contextmenu","__playwright_global_listeners_check__"]}
+waitForFunction {"before":1,"after":14,"after300":14,"types":["keydown","mousemove","pointerdown","pointerup","touchstart","touchend","touchcancel","mousedown","mouseup","click","auxclick","dblclick","contextmenu","__playwright_global_listeners_check__"]}
+evaluate {"before":1,"after":1,"after300":1,"types":["keydown"]}

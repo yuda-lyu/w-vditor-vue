@@ -1,0 +1,21 @@
+{
+    "ORI": "# 標題\n\n第一段內容abc\n\n第二段內容xyz\n",
+    "SECOND": "# 第二個\n\n第二個實例之內容\n",
+    "EMPTY": "",
+    "AAA": "AAA初值",
+    "BBB": "BBB新值",
+    "NEW": "# 新內容\n\n非同步載入後之內容\n",
+    "NEW_SHORT": "# 新內容\n",
+    "PULL1": "# 外部\n\n外部變更之內容\n",
+    "PULL2": "# E2\n\n第二次外部\n",
+    "SERVER": "# 標題\n\n第一段內容abc\n\n伺服器回傳之內容\n",
+    "TASKS": "# 標題\n\n- [ ] 待辦一\n- [x] 待辦二\n\n![圖](/node_modules/vditor/dist/images/logo.png)\n",
+    "RO": "# 標題\n\n- [ ] 待辦一\n- [x] 待辦二\n\n前文[連結](/node_modules/vditor/package.json)後文\n\n末段文字\n",
+    "LONG": "# 標題\n\n第1段文字\n\n第2段文字\n\n第3段文字\n\n第4段文字\n\n第5段文字\n\n第6段文字\n\n第7段文字\n\n第8段文字\n\n第9段文字\n\n第10段文字\n\n第11段文字\n\n第12段文字\n\n第13段文字\n\n第14段文字\n\n第15段文字\n\n第16段文字\n\n第17段文字\n\n第18段文字\n\n第19段文字\n\n第20段文字\n\n第21段文字\n\n第22段文字\n\n第23段文字\n\n第24段文字\n\n第25段文字\n\n第26段文字\n\n第27段文字\n\n第28段文字\n\n第29段文字\n\n第30段文字\n",
+    "BELOW": "# 標題\n\n末段文字\n",
+    "FORM": "# 標題\n\n<input type=\"text\" value=\"x\">\n\n末段文字\n",
+    "MAIL": "# 標題\n\n第一段內容\n\n聯絡a@b.com\n",
+    "SVALUE": "# 設定內容\n\n由設定給予之內容\n",
+    "CACHED": "# 快取內容\n\n快取保存之內容\n",
+    "NOTE": "PASTE"
+}

@@ -1,0 +1,22 @@
+root C:\opensrc
+native sync
+{"finalText":"xyzabcd","value":"\"xyzabcd\"","nInputs":4,"seq":"xyza | xyzab | xyzabc | xyzabcd","errs":[],"logs":[]}
+native delay1000
+{"finalText":"xyzad","value":"\"xyzad\"","nInputs":4,"seq":"xyza | xyzab | xyzabc | xyza | xyzad | xyzab | xyzabc | xyzad","errs":[],"logs":[]}
+ckeditor sync
+{"finalText":"xyzabcd","value":"\"<p>xyzabcd</p>\"","nInputs":4,"seq":"xyza | xyzab | xyzabc | xyzabcd","errs":[],"logs":[]}
+ckeditor delay1000
+{"finalText":"xyzab","value":"\"<p>xyzab</p>\"","nInputs":10,"seq":"xyza | xyzab | xyzabc | xyza | dxyza | xyzab | xyzabc | xyzab | xyzabc | xyzab | xyzabc | xyzab","errs":[],"logs":[]}
+tinymce sync
+{"finalText":"xyzabcd","value":"\"<p>xyzabcd</p>\"","nInputs":5,"seq":"xyza | xyzab | xyzabc | xyzabcd","errs":[],"logs":[]}
+tinymce delay1000
+{"finalText":"dxyza","value":"\"<p>dxyza</p>\"","nInputs":5,"seq":"xyza | xyzab | xyzabc | xyza | dxyza | xyzab | xyzabc | dxyza","errs":[],"logs":[]}
+quill sync
+{"finalText":"xyzabcd","value":"\"<p>xyzabcd</p>\"","nInputs":4,"seq":"xyza | xyzab | xyzabc | xyzabcd","errs":[],"logs":[]}
+quill delay1000
+{"finalText":"xyza","value":"\"<p>xyza</p>\"","nInputs":20,"seq":"xyza | xyzab | xyzabc | xyza | dxyza | xyzab | xyzabc | xyza | dxyza | xyzab | xyzabc | xyza | dxyza | xyzab | xyzabc | xyza | dxyza | xyzab | xyzabc | xyza","errs":[],"logs":[]}
+vditor sync
+{"finalText":"xyz abcd","value":"\"xyz\\n\\nabcd\\n\"","nInputs":4,"seq":"xyz a | xyz ab | xyz abc | xyz abcd","errs":[],"logs":[]}
+vditor delay1000
+{"finalText":"xyz abcd","value":"\"xyz\\n\\nabcd\\n\"","nInputs":4,"seq":"xyz a | xyz ab | xyz abc | xyz abcd","errs":[],"logs":[]}
+EXIT 0

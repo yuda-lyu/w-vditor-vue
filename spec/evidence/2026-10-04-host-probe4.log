@@ -1,0 +1,19 @@
+invalid runin[null], set to 'browser'
+[BABEL] Note: The code generator has deoptimised the styling of C:\opensrc\開源-JS-403-7-w-vditor-vue\w-vditor-vue\node_modules\vditor\dist\index.js as it exceeds the max of 500KB.
+P11 i18nAbort {"ls":{"exists":true,"hidden":true,"iconVisible":true},"tips":[{"text":"GET /node_modules/vditor/dist/js/i18n/zh_TW.js net::ERR_ABORTED 404 (Not Found)\nX","visible":true,"cls":"vditor-tip vditor-tip--show"}],"logs":["[error] Failed to load resource: net::ERR_FAILED"]}
+P11b luteAbort {"ls":{"exists":true,"hidden":true,"iconVisible":true},"tips":[],"logs":["[error] Failed to load resource: net::ERR_FAILED","[pageerror] Event"]}
+P12 lang {"ls":{"exists":true,"hidden":true,"iconVisible":true},"tips":[],"info":{"inputs":[],"errs":[],"after":[],"fl":[],"cb":[],"docKeys":[],"mdout":"# 標題\n\n第一段內容abc\n\n第二段內容xyz\n","status":"","lastKey":""},"logs":["[log] Error: options.lang error, see https://ld246.com/article/1549638745630#options"]}
+P13 cache noid {"ls":{"exists":true,"hidden":true,"iconVisible":true},"tips":[],"info":[],"logs":["[log] Error: need options.cache.id, see https://ld246.com/article/1549638745630#options"]}
+P14 cache id {"s":{"text":"標題 第一段內容abc 第二段內容xyz","undoDisabled":true,"boldDisabled":false,"editable":"true"},"inputs":["# 標題\n\n第一段內容abc\n\n第二段內容xyzQ\n"],"lsAfterTyping":"# 標題\n\n第一段內容abc\n\n第二段內容xyzQ\n","logs":[]}
+P15 svalue {"s":{"text":"標題 第一段內容abc 第二段內容xyz","undoDisabled":true,"boldDisabled":false,"editable":"true"},"inputs":[],"logs":[]}
+P16 export {"hover":[{"panel":[{"type":"markdown","text":"Markdown","visible":false},{"type":"html","text":"HTML","visible":false}],"panelDisplay":"none"}],"afterClick":[{"type":"markdown","text":"Markdown"},{"type":"html","text":"HTML"}],"logs":[]}
+P17 wysiwyg {"reached":true,"cbKeys":[],"sel":"標題\n第1段文字\n\n第2段文字","cbSel":["select"],"cbAll":["select","unSelect"],"logs":[]}
+P17 ir {"reached":true,"cbKeys":[],"sel":"標題\n第1段文字\n\n第2段文字","cbSel":["select"],"cbAll":["select","unSelect"],"logs":[]}
+P17 sv {"reached":true,"cbKeys":[],"sel":"\n第1段文字\n\n第2段文字","cbSel":["select"],"cbAll":["select","unSelect"],"logs":[]}
+P17b editable {"cb":["keydown","keydown","keydown","esc","keydown","keydown","ctrlEnter","keydown","unSelect"],"logs":[]}
+P19 close pending {"inputs":[],"mdoutTail":"\n第二段內容xyz\n","errs":[],"logs":[]}
+P20 wysiwyg crlf {"hasCrlf":true,"base":"標題 第一段內容abc 第二段內容xyz","text":"標題 第一段內容abc 第二段內容xyzY","focusIn":true,"logs":[]}
+P20 sv crlf {"hasCrlf":true,"base":"# 標題 第一段內容abc 第二段內容xyz","text":"# 標題 第一段內容abc 第二段內容xyz Y","focusIn":true,"logs":[]}
+P21 multi {"key":"/kw","text":"標題 第一段內容abc 第二段內容xyz XYZ","logs":[]}
+P22 no-space {"visible":false,"logs":[]}
+EXIT 0

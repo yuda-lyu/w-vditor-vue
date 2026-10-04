@@ -1,0 +1,9 @@
+invalid runin[null], set to 'browser'
+[BABEL] Note: The code generator has deoptimised the styling of C:\opensrc\開源-JS-403-7-w-vditor-vue\w-vditor-vue\node_modules\vditor\dist\index.js as it exceeds the max of 500KB.
+P9 wysiwyg delay1000 {"base":"標題 第一段內容abc 第二段內容xyz","text":"d標題 第一段內容abc 第二段內容xyza","inputs":["\n\n第二段內容xyza\n","\n第二段內容xyzab\n","第二段內容xyzabc\n","\n\n第二段內容xyza\n"],"mdout":"bc\n\n第二段內容xyza\n","logs":[]}
+P9 ir delay1000 {"base":"# 標題 第一段內容abc 第二段內容xyz","text":"# d標題 第一段內容abc 第二段內容xyza","inputs":["\n\n第二段內容xyza\n","\n第二段內容xyzab\n","第二段內容xyzabc\n","\n\n第二段內容xyza\n"],"mdout":"bc\n\n第二段內容xyza\n","logs":[]}
+P9 sv delay1000 {"base":"# 標題 第一段內容abc 第二段內容xyz","text":"d# 標題 第一段內容abc 第二段內容xyz a","inputs":["第二段內容xyz\na\n\n","二段內容xyz\nab\n\n","段內容xyz\nabc\n\n","第二段內容xyz\na\n\n"],"mdout":"\n\n第二段內容xyz\na\n\n","logs":[]}
+P10 wysiwyg undo {"s1":{"text":"標題 第一段內容abc 第二段內容xyz","undoDisabled":true,"boldDisabled":false,"editable":"true"},"s2":{"text":"標題 第一段內容abc 第二段內容xyz","undoDisabled":true,"boldDisabled":false,"editable":"true"},"last":"# 標題\n\n第一段內容abc\n\n第二段內容xyz\n","logs":[]}
+P10 ir undo {"s1":{"text":"# 標題 第一段內容abc 第二段內容xyz","undoDisabled":true,"boldDisabled":false,"editable":"true"},"s2":{"text":"# 標題 第一段內容abc 第二段內容xyz","undoDisabled":true,"boldDisabled":false,"editable":"true"},"last":"# 標題\n\n第一段內容abc\n\n第二段內容xyz\n","logs":[]}
+P10 sv undo {"s1":{"text":"# 標題 第一段內容abc 第二段內容xyz","undoDisabled":true,"boldDisabled":false,"editable":"true"},"s2":{"text":"# 標題 第一段內容abc 第二段內容xyz","undoDisabled":true,"boldDisabled":false,"editable":"true"},"last":"# 標題\n\n第一段內容abc\n\n第二段內容xyz\n\n","logs":[]}
+EXIT 0

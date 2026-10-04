@@ -230,7 +230,7 @@ let def_settings = {
  *
  * @vue-prop {String} [value=''] 輸入markdown字串，為編輯器內容之唯一來源(settings.value與settings.cache之內容於初始化完成時皆被value取代)，可使用v-model雙向綁定，亦可只給value並於input事件內回寫或不回寫，null與undefined視為''，其他非字串會轉為字串，預設為''。編輯器初始化完成時載入當下之value(含初始化期間父層才給予之資料)並作為復原起點；之後value變更時，若等於組件最後回拋之值或編輯器當前內容則為回寫而不重載(比對時忽略結尾空白與換行符\r\n、\n之差異，開頭空白之增減屬內容變更)，否則以value為準載入：使用者尚未編輯時變更後之內容即成為新的復原起點，已有編輯則保留復原歷史；載入時若編輯區持有焦點，游標不保留。換載另一份文件或需捨棄編輯時，請以key重建組件
  * @vue-prop {Number} [height=400] 輸入編輯器高度數字，單位為px，預設為400
- * @vue-prop {Object} [settings={}] 輸入vditor設定物件，會覆蓋組件內建預設值，內建預設值詳見原始碼處def_settings，各設定項詳見vditor官方文件。settings、height、keyHint、hintTimeDetect皆於建立編輯器時採用，之後變更不生效，需變更時請以key重建組件。其中settings.input由組件接管；settings.after會於編輯器初始化完成且已載入value後呼叫一次，組件於初始化完成前即銷毀時則不呼叫；settings.cache.enable為true時須同時給予settings.cache.id。lute或語系檔無法載入、settings.lang不合法、settings.cache缺id、或初始化完成時處理失敗時，組件會停留於載入圖示
+ * @vue-prop {Object} [settings={}] 輸入vditor設定物件，會覆蓋組件內建預設值，內建預設值詳見原始碼處def_settings，各設定項詳見vditor官方文件。settings、height、keyHint、hintTimeDetect皆於建立編輯器時採用，之後變更不生效，需變更時請以key重建組件。其中settings.input由組件接管；settings.after會於編輯器初始化完成且已載入value後呼叫一次，組件於初始化完成前即銷毀時則不呼叫；settings.cache.enable為true時須同時給予settings.cache.id。lute或語系檔無法載入、settings.lang或settings.mode不合法、settings.cache缺id、或初始化完成時處理失敗時，組件會停留於載入圖示
  * @vue-prop {String} [settings.mode='wysiwyg'] 輸入編輯模式字串，可選'sv'(雙欄位)、'ir'(即時渲染)、'wysiwyg'(所見即所得)，預設為'wysiwyg'
  * @vue-prop {String} [settings.lang='zh_TW'] 輸入語系字串，可選'zh_CN'、'zh_TW'、'en_US'、'ja_JP'、'ko_KR'、'ru_RU'、'sv_SE'、'fr_FR'、'pt_BR'，預設為'zh_TW'
  * @vue-prop {String} [settings.theme='classic'] 輸入編輯器主題字串，可選'classic'、'dark'，預設為'classic'
@@ -474,13 +474,17 @@ export default {
             vo.fLockGuard = null
         }
 
-        //destroy, 須vditor初始化完成(ready或failed)才可完整銷毀:
-        //語系檔未載入前vditor尚無vditor物件, 此時destroy會因讀取vditor.element而報錯;
-        //lute未載入前destroy雖可執行, 但vditor於lute載入後仍會initUI並綁定window之resize監聽而殘留,
-        //故creating階段改由onEditorReady於初始化完成時補做銷毀
+        //destroy, vditor初始化完成(ready或failed)時以其destroy完整銷毀;
+        //初始化未完成(creating)時不呼叫destroy, vditor亦無取消初始化之介面:
+        //語系檔未載入前vditor尚無vditor物件, destroy會因讀取vditor.element而報錯;
+        //lute未載入前destroy雖可執行, 但其UIUnbindListener會移除同頁其他編輯器之window resize監聽(vditor以模組層單一變數保存), 且lute事後送達時vditor仍會initUI並重新綁定,
+        //故改由releaseCreating依初始化進度釋放已綁定之監聽並阻止後續處理, lute於銷毀後才送達者由onEditorReady於初始化完成時補做銷毀
         if (vo.contentEditor) {
             if (stagePrev === 'ready' || stagePrev === 'failed') {
                 vo.contentEditor.destroy()
+            }
+            else {
+                vo.releaseCreating(vo.contentEditor)
             }
             vo.contentEditor = null
         }
@@ -719,7 +723,7 @@ export default {
 
             let vo = this
 
-            //check, 組件已於vditor完成初始化前銷毀(beforeDestroy當時無法完整銷毀), 於此補做銷毀, 呼叫端之after不呼叫
+            //check, 組件已於vditor完成初始化前銷毀(lute於銷毀後才送達, beforeDestroy當時無法完整銷毀, 見releaseCreating), 於此補做銷毀, 呼叫端之after不呼叫
             if (vo.stage === 'destroyed') {
                 editor.destroy()
                 return
@@ -742,6 +746,27 @@ export default {
             //afterUser, 呼叫端自帶之settings.after, 依vditor原呼叫方式以其合併後之設定為接收者
             if (isfun(afterUser)) {
                 afterUser.call(get(editor, 'vditor.options'))
+            }
+
+        },
+
+        releaseCreating: function(editor) {
+            //vditor初始化未完成即銷毀組件時, 釋放vditor已綁定之全域監聽並阻止其後續處理(不呼叫vditor之destroy之原因見beforeDestroy)
+            //isDestroyed與showErrorTip為vditor之private成員(TypeScript之private於執行期為一般屬性), 以實例屬性寫入
+
+            //isDestroyed, vditor之destroy所設、init開頭所檢查之旗標: 語系檔未載入時令其載入後init直接返回, 不建立編輯區亦不再請求lute;
+            //init已執行時寫入無作用, 僅使狀態與已銷毀一致
+            editor.isDestroyed = true
+
+            //showErrorTip, 語系檔於銷毀後才載入失敗時不顯示vditor之錯誤提示(提示附加於body, 編輯器已移除); init已執行時已無待處理之語系檔
+            editor.showErrorTip = () => {}
+
+            //unbindListener, vditor物件已建立(語系檔已載入或頁面自備語系, init已執行)而初始化未完成時, 解除建立所見即所得編輯區時綁定之window scroll監聽;
+            //lute於銷毀後才送達時vditor仍會initUI並呼叫after, 由onEditorReady補做完整銷毀(含initUI綁定之resize監聽);
+            //設定錯誤使vditor於init或initUI中途拋錯時, 未保存之所見即所得編輯區(或自建構式拋錯而未取得之vditor)與已綁定之resize監聽無從釋放, 見spec/流程_編輯器載入與關閉.md〈已知落差〉
+            let w = get(editor, 'vditor.wysiwyg', null)
+            if (w && isfun(w.unbindListener)) {
+                w.unbindListener()
             }
 
         },

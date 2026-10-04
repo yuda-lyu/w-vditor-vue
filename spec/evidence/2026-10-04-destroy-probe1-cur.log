@@ -1,0 +1,12 @@
+invalid runin[null], set to 'browser'
+[BABEL] Note: The code generator has deoptimised the styling of C:\opensrc\開源-JS-403-7-w-vditor-vue\w-vditor-vue\node_modules\vditor\dist\index.js as it exceeds the max of 500KB.
+[cur] base {"resize":0,"scroll":0}
+[cur] S1 phaseB lute-never {"leak":{"resize":0,"scroll":1},"errs":[],"after":0,"otherLogs":[]}
+[cur] S2 phaseA i18n-late lute-never {"leak":{"resize":0,"scroll":1},"errs":[],"after":0,"otherLogs":[]}
+[cur] S3 phaseA i18n-late lute-late {"leak":{"resize":0,"scroll":0},"errs":[],"after":0,"otherLogs":[]}
+[cur] S4 phaseB lute-late {"leak":{"resize":0,"scroll":0},"errs":[],"after":0,"otherLogs":[]}
+[cur] S5 i18n-given lute-never {"leak":{"resize":0,"scroll":1},"errs":[],"after":0,"otherLogs":[]}
+[cur] S6 repeat x4 lute-never {"leak":{"resize":0,"scroll":4},"errs":[],"after":0,"otherLogs":[]}
+[cur] S7 ready close {"leak":{"resize":0,"scroll":0},"errs":[],"after":1,"otherLogs":[]}
+[cur] S8 two-ready listeners {"n2":{"resize":3,"scroll":4},"base":{"resize":0,"scroll":0}}
+EXIT 0

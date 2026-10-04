@@ -1,0 +1,24 @@
+browser 154.0.8037.95
+[F8] Va
+{"right-link":{"active":"BODY","docKeys":["Escape","Escape"],"pages":1,"logs":[]},"right-checkbox":{"active":"BODY","docKeys":["Escape","Escape"],"pages":1,"logs":[]},"middle-link":{"active":"BODY","docKeys":["Escape","Escape"],"pages":2,"logs":[]},"drag-link":{"active":"BODY","docKeys":["Escape","Escape"],"pages":1,"logs":[]}}
+[F8] Vb
+{"script:wysiwyg":{"entry":19,"active":"BUTTON#btnToggle+fv","fl":["focus","blur"],"logs":[]},"script:sv":{"entry":15,"active":"BUTTON#btnToggle+fv","fl":["focus","blur"],"logs":[]},"mouse:wysiwyg":{"entry":19,"active":"INPUT#ipOther+fv","fl":["focus","blur"],"logs":[]},"mouse:sv":{"entry":15,"active":"INPUT#ipOther+fv","fl":["focus","blur"],"logs":[]}}
+[F8] Vc
+{"code:wysiwyg":{"tags":["TEXTAREA(copy)"],"visCopy":1,"stops":["TEXTAREA(in-editor)+fv"],"target":"TEXTAREA(in-editor)+fv","typed":{"inputsAdded":0,"mdChanged":false,"errs":[]},"logs":[]},"code:ir":{"tags":["TEXTAREA(copy)"],"visCopy":1,"stops":["CODE(in-editor)+fv","TEXTAREA(in-editor)+fv"],"target":"TEXTAREA(in-editor)+fv","typed":{"inputsAdded":0,"mdChanged":false,"errs":[]},"logs":[]},"html:wysiwyg":{"tags":["INPUT","DETAILS","SUMMARY"],"visCopy":0,"stops":["INPUT(in-editor)+fv"],"target":"INPUT(in-editor)+fv","typed":{"inputsAdded":0,"mdChanged":false,"errs":[]},"logs":[]},"html:ir":{"tags":["INPUT","DETAILS","SUMMARY"],"visCopy":0,"stops":["CODE(in-editor)+fv","INPUT(in-editor)+fv"],"target":"INPUT(in-editor)+fv","typed":{"inputsAdded":0,"mdChanged":false,"errs":[]},"logs":[]}}
+[F8] Vd
+{"wysiwyg":{"entry":19,"flBeforeLeave":["focus"],"active":"INPUT#ipOther+fv","fl":["focus","blur"],"logs":[]},"sv":{"entry":15,"flBeforeLeave":["focus"],"active":"INPUT#ipOther+fv","fl":["focus","blur"],"logs":[]}}
+[F8] Ve
+{"wysiwyg":{"paddingLeft":35,"hit":"editor","active":"BODY","fl":[],"logs":[]},"ir":{"paddingLeft":35,"hit":"editor","active":"BODY","fl":[],"logs":[]}}
+[F8] Vf
+{"wysiwyg":{"stops":["TABLE(in-editor)+fv:","CODE(in-editor)+fv:language-js","→out:BODY"],"logs":[]},"ir":{"stops":["TABLE(in-editor)+fv:","CODE(in-editor)+fv:language-js","CODE(in-editor)+fv:language-js","→out:BODY"],"logs":[]}}
+[F8] Vh
+{"ir":{"linkOpened":true,"active":"BODY","docKeys":["Escape"],"fl":[],"logs":[]},"wysiwyg":{"linkOpened":true,"active":"BODY","docKeys":["Escape"],"fl":[],"logs":[]}}
+[F8] Vi
+{"wysiwyg:noClick":{"emitted":1,"lastHasZ":true,"logs":[]},"wysiwyg:clickHeadings":{"emitted":1,"lastHasZ":true,"logs":[]},"ir:noClick":{"emitted":1,"lastHasZ":true,"logs":[]},"ir:clickHeadings":{"emitted":1,"lastHasZ":true,"logs":[]}}
+[F8] Vj
+{"hasPop":false,"before":"PRE(editor)+fv","after":"BODY","popVisible":null,"inputsAfterType":0,"logs":[]}
+[F8] Vk
+{"wysiwyg":{"inputsWhileLocked":1,"mdTailLocked":"\"段內容xyzㄓ\\n\"","composing":{"wysiwyg":false,"ir":false,"sv":false},"inputsAfter":2,"lastTail":"\"內容xyzㄓQ\\n\"","logs":[]},"ir":{"inputsWhileLocked":1,"mdTailLocked":"\"段內容xyzㄓ\\n\"","composing":{"wysiwyg":false,"ir":false,"sv":false},"inputsAfter":2,"lastTail":"\"內容xyzㄓQ\\n\"","logs":[]},"sv":{"inputsWhileLocked":1,"mdTailLocked":"\"容xyz\\nㄓ\\n\\n\"","composing":{"wysiwyg":false,"ir":false,"sv":false},"inputsAfter":2,"lastTail":"\"yz\\nㄓ\\nQ\\n\\n\"","logs":[]}}
+[F8] Vl
+{"tabToEditor":"PRE(editor)+fv","scriptFocusAfterMouse":"PRE(editor)+fv","scriptFocusAfterKey":"PRE(editor)+fv","tabToCheckbox":"INPUT(in-editor)+fv","mouseCheckbox":"INPUT(in-editor)","rightLink":"BODY"}
+EXIT 0

@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="zh-tw">
+<head>
+    <meta charset="utf-8" />
+    <title>WVditorVue 示範宿主頁</title>
+    <!--
+    示範宿主頁: 扮演嵌入編輯器之父層頁面, 供e2e測試(test/e2e-*.test.mjs)與人工探索共用
+    - 父層行為一律於開頁時以網址參數設定(setup), 測試之操作只經本頁之按鈕、快捷鍵與編輯器之真鍵盤滑鼠
+    - 文件內容取自同目錄docs.json(單一來源, 測試端亦讀同一檔)
+    - 觀察用紀錄: window.__inputs(元件回傳之內容)、__errs、__after、__fl、__docKeys, 以及#mdout(頁面持有之內容)
+    網址參數:
+    - mode: 編輯模式wysiwyg、ir、sv
+    - doc: 初始文件鍵(docs.json), NULL為null、NUM為數字12345, 預設ORI
+    - editable: 0為唯讀文件
+    - i18n: 1為由頁面自備語系物件(settings.i18n)
+    - lang: settings.lang(預設zh_TW)
+    - svalue: settings.value之文件鍵(驗證被value取代)
+    - cache: id為啟用快取(settings.cache.id為e2e-cache)、noid為啟用快取但未給id; cacheSeed: 開頁前寫入快取之文件鍵
+    - focusLog: 1為記錄settings.focus與settings.blur之呼叫
+    - cbLog: 1為記錄settings.select、unSelect、keydown、esc、ctrlEnter之呼叫(window.__cb)
+    - after: 1為記錄settings.after之呼叫
+    - keyHint、hintTimeDetect: 提示區觸發字串(多組以逗號分隔)與偵測延遲
+    - writeMode: 頁面收到回傳後之回寫方式, sync(同步, 等同v-model)、micro(下一個微任務)、debounce300(停止回傳300ms後)、trim(修整兩端空白)、none(不回寫)、
+      delay1000(每筆回傳各自延後1秒回寫, 延遲回寫之協調屬父層責任, 僅供探索其後果)
+    - instances: 2為另顯示第二個獨立編輯器; shared: 1為另顯示共用同一份內容之編輯器
+    - hide: 1為開頁時不顯示編輯器
+    - dataAt、dataDoc: 開頁後dataAt毫秒才收到資料(後端資料延遲到達)
+    - permAt、permTo: 開頁後permAt毫秒才收到權限(permTo=1可編輯、0唯讀)
+    - saveLock、saveReply、saveReplyAt、serverDoc: 按Ctrl+S儲存時之上傳行為, saveLock為上傳期間唯讀之毫秒數(0不鎖定),
+      saveReply為伺服器回應後之寫回(none不寫回、echo回傳上傳內容並於結尾補換行、echoCrlf回傳上傳內容並改為CRLF換行、server回傳serverDoc), saveReplyAt為回應時間(毫秒)
+    - pull: 「取得最新版本」依序取得之文件鍵(逗號分隔), 預設PULL1,PULL2
+    快捷鍵(頁面於window之capture階段處理): Ctrl+S儲存, Alt+F聚焦搜尋框
+    -->
+    <script src="/node_modules/vue/dist/vue.min.js"></script>
+    <script src="/bundle/w-vditor-vue.umd.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: sans-serif;
+            font-size: 14px;
+        }
+        .bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            padding: 6px;
+        }
+        #hostNote {
+            margin: 0 6px 6px 6px;
+            height: 20px;
+        }
+        #mdout {
+            margin: 6px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="bar">
+            <input id="hostSearch" aria-label="搜尋" placeholder="搜尋" />
+            <button id="btnEditable" @click="toggleEditable">{{editable ? '設為唯讀' : '設為可編輯'}}</button>
+            <button id="btnPull" @click="pull">取得最新版本</button>
+            <button id="btnRestore" @click="restore">恢復上一版</button>
+            <button id="btnClear" @click="clear">清除內容</button>
+            <button id="btnToggle" @click="toggleShow">{{show ? '關閉編輯器' : '開啟編輯器'}}</button>
+            <span id="hostStatus">{{status}}</span>
+            <span>最近按鍵：<span id="hostLastKey">{{lastKey}}</span></span>
+        </div>
+        <textarea id="hostNote" aria-label="備忘" v-model="note"></textarea>
+        <w-vditor-vue
+            v-if="show"
+            :height="300"
+            :settings="settings"
+            :editable="editable"
+            :key-hint="keyHint"
+            :hint-time-detect="hintTimeDetect"
+            :value="content"
+            @input="onInput"
+        >
+            <template v-slot:content="props">
+                <div class="hintBox"><span class="hintKey">{{props.hint}}</span><button class="hintItem" @click="props.funInsert('XYZ'); props.funHide();">插入XYZ</button></div>
+            </template>
+        </w-vditor-vue>
+        <pre id="mdout">{{content}}</pre>
+        <w-vditor-vue
+            v-if="show && instances >= 2"
+            :height="300"
+            :settings="settings"
+            v-model="content2"
+        ></w-vditor-vue>
+        <w-vditor-vue
+            v-if="show && shared"
+            :height="300"
+            :settings="settings"
+            :value="content"
+            @input="onInput"
+        ></w-vditor-vue>
+    </div>
+    <script>
+        window.__errs = []
+        window.__inputs = []
+        window.__after = []
+        window.__fl = []
+        window.__cb = []
+        window.__docKeys = []
+        Vue.config.errorHandler = function(err, vm, info) {
+            window.__errs.push('vue[' + info + ']: ' + (err && err.message))
+            console.error(err)
+        }
+
+        //isLoading, 編輯器是否仍在載入(元件以max-height:0遮擋)
+        function isLoading() {
+            let fix = document.querySelector('.WVditorFix')
+            return !!fix && (fix.getAttribute('style') || '').includes('max-height')
+        }
+
+        async function main() {
+            let q = new URLSearchParams(location.search)
+            let docs = await (await fetch('/host/docs.json')).json()
+            let pick = function(key) {
+                if (key === 'NULL') {
+                    return null
+                }
+                if (key === 'NUM') {
+                    return 12345
+                }
+                if (!Object.prototype.hasOwnProperty.call(docs, key)) {
+                    throw new Error('docs.json無此文件: ' + key)
+                }
+                return docs[key]
+            }
+
+            //settings, vditor資源由本機站台供應
+            let settings = {
+                cdn: '/node_modules/vditor',
+                lang: 'zh_TW',
+            }
+            if (q.has('mode')) {
+                settings.mode = q.get('mode')
+            }
+            if (q.has('lang')) {
+                settings.lang = q.get('lang')
+            }
+            if (q.has('svalue')) {
+                settings.value = pick(q.get('svalue'))
+            }
+            if (q.get('cache') === 'id') {
+                settings.cache = { enable: true, id: 'e2e-cache' }
+            }
+            else if (q.get('cache') === 'noid') {
+                settings.cache = { enable: true }
+            }
+            if (q.has('cacheSeed')) {
+                //頁面先前以快取保存之內容
+                localStorage.setItem('e2e-cache', pick(q.get('cacheSeed')))
+            }
+            if (q.get('cbLog') === '1') {
+                for (let k of ['select', 'unSelect', 'keydown', 'esc', 'ctrlEnter']) {
+                    settings[k] = function() {
+                        window.__cb.push(k)
+                    }
+                }
+            }
+            if (q.get('i18n') === '1') {
+                //頁面直接給予語系物件(元件說明之內網用法)
+                let txt = await (await fetch('/node_modules/vditor/dist/js/i18n/zh_TW.js')).text()
+                new Function(txt)()
+                settings.i18n = window.VditorI18n
+                delete window.VditorI18n
+            }
+            if (q.get('focusLog') === '1') {
+                settings.focus = function() {
+                    window.__fl.push('focus')
+                }
+                settings.blur = function() {
+                    window.__fl.push('blur')
+                }
+            }
+            if (q.get('after') === '1') {
+                settings.after = function() {
+                    let ed = document.querySelector('.WVditorFix .vditor-reset[contenteditable]')
+                    window.__after.push({
+                        text: ed ? ed.innerText.trim() : null,
+                        editable: ed ? ed.getAttribute('contenteditable') : null,
+                        receiverHasMode: !!(this && this.mode),
+                    })
+                }
+            }
+
+            let writeMode = q.get('writeMode') || 'sync'
+            let saveLock = Number(q.get('saveLock') || 0)
+            let saveReply = q.get('saveReply') || 'none'
+            let saveReplyAt = Number(q.get('saveReplyAt') || 0)
+            let serverDoc = q.get('serverDoc') || 'SERVER'
+            let pullDocs = (q.get('pull') || 'PULL1,PULL2').split(',')
+            let content = pick(q.get('doc') || 'ORI')
+            let tDebounce = null
+
+            Vue.component('w-vditor-vue', window['w-vditor-vue'])
+            let vm = new Vue({
+                el: '#app',
+                data: function() {
+                    return {
+                        show: q.get('hide') !== '1',
+                        settings,
+                        editable: q.get('editable') !== '0',
+                        keyHint: (q.get('keyHint') || '').includes(',') ? q.get('keyHint').split(',') : (q.get('keyHint') || ''),
+                        hintTimeDetect: q.has('hintTimeDetect') ? Number(q.get('hintTimeDetect')) : undefined, //未給時用元件預設(100ms)
+                        content,
+                        content2: docs.SECOND,
+                        instances: Number(q.get('instances') || 1),
+                        shared: q.get('shared') === '1',
+                        versions: [content], //頁面之版本紀錄: 初始內容與每次收到之回傳
+                        pullIndex: 0,
+                        saving: false,
+                        status: '',
+                        lastKey: '',
+                        note: docs.NOTE,
+                    }
+                },
+                methods: {
+                    onInput: function(v) {
+                        window.__inputs.push(v)
+                        this.versions.push(v)
+                        if (writeMode === 'micro') {
+                            Promise.resolve().then(() => {
+                                this.content = v
+                            })
+                        }
+                        else if (writeMode === 'debounce300') {
+                            clearTimeout(tDebounce)
+                            tDebounce = setTimeout(() => {
+                                this.content = v
+                            }, 300)
+                        }
+                        else if (writeMode === 'trim') {
+                            this.content = v.trim()
+                        }
+                        else if (writeMode === 'delay1000') {
+                            setTimeout(() => {
+                                this.content = v
+                            }, 1000)
+                        }
+                        else if (writeMode === 'none') {
+                            //單向綁定, 不回寫
+                        }
+                        else {
+                            this.content = v
+                        }
+                    },
+                    toggleEditable: function() {
+                        this.editable = !this.editable
+                    },
+                    pull: function() {
+                        //取得最新版本: 依序取得伺服器上之下一個版本
+                        if (this.pullIndex < pullDocs.length) {
+                            this.content = pick(pullDocs[this.pullIndex])
+                            this.pullIndex++
+                        }
+                    },
+                    restore: function() {
+                        //恢復上一版: 捨棄最新一版, 以其前一版為內容
+                        if (this.versions.length >= 2) {
+                            this.versions.pop()
+                            this.content = this.versions[this.versions.length - 1]
+                        }
+                    },
+                    clear: function() {
+                        //清除內容: 頁面以null表示無內容
+                        this.content = null
+                    },
+                    toggleShow: function() {
+                        if (this.show) {
+                            window.__existedAtClose = !!document.querySelector('.WVditorFix')
+                            window.__loadingAtClose = isLoading()
+                        }
+                        this.show = !this.show
+                    },
+                    save: function() {
+                        //儲存: 上傳頁面持有之內容, 上傳期間依saveLock鎖定編輯, 伺服器回應後依saveReply寫回
+                        if (this.saving) {
+                            return
+                        }
+                        this.saving = true
+                        this.status = '上傳中…'
+                        let uploaded = this.content
+                        let finish = () => {
+                            this.saving = false
+                            this.status = '已儲存'
+                        }
+                        if (saveLock > 0) {
+                            this.editable = false
+                        }
+                        setTimeout(() => {
+                            if (saveReply === 'echo') {
+                                this.content = (uploaded === null || uploaded === undefined ? '' : String(uploaded)) + '\n'
+                            }
+                            else if (saveReply === 'echoCrlf') {
+                                this.content = (uploaded === null || uploaded === undefined ? '' : String(uploaded)).replace(/\r?\n/g, '\r\n')
+                            }
+                            else if (saveReply === 'server') {
+                                this.content = pick(serverDoc)
+                            }
+                            if (saveLock === 0) {
+                                finish()
+                            }
+                        }, saveReplyAt)
+                        if (saveLock > 0) {
+                            setTimeout(() => {
+                                this.editable = true
+                                finish()
+                            }, saveLock)
+                        }
+                    },
+                },
+            })
+
+            //快捷鍵, 於window之capture階段處理(先於編輯器), 處理後不再傳遞
+            window.addEventListener('keydown', function(e) {
+                let onlyCtrl = e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey
+                let onlyAlt = e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey
+                if (onlyCtrl && e.code === 'KeyS') {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    vm.save()
+                }
+                else if (onlyAlt && e.code === 'KeyF') {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    document.getElementById('hostSearch').focus()
+                }
+            }, true)
+
+            //最近按鍵, 頁面於document之bubble階段收到之按鍵(例如對話框以Esc關閉之類的頁面處理)
+            document.addEventListener('keydown', function(e) {
+                window.__docKeys.push(e.key)
+                vm.lastKey = e.key
+            })
+
+            //後端資料延遲到達
+            if (q.has('dataAt')) {
+                setTimeout(function() {
+                    window.__loadingAtData = isLoading()
+                    vm.content = pick(q.get('dataDoc'))
+                }, Number(q.get('dataAt')))
+            }
+
+            //權限延遲到達
+            if (q.has('permAt')) {
+                setTimeout(function() {
+                    window.__loadingAtPerm = isLoading()
+                    vm.editable = q.get('permTo') === '1'
+                }, Number(q.get('permAt')))
+            }
+        }
+        main().catch(function(err) {
+            window.__errs.push('main: ' + (err && err.message))
+        })
+    </script>
+</body>
+</html>

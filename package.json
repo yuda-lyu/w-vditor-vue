@@ -1,6 +1,6 @@
 {
   "name": "w-vditor-vue",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "main": "dist/w-vditor-vue.umd.js",
   "dependencies": {
     "vditor": "^3.11.3",

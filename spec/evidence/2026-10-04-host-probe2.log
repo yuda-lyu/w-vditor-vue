@@ -1,0 +1,6 @@
+invalid runin[null], set to 'browser'
+[BABEL] Note: The code generator has deoptimised the styling of C:\opensrc\開源-JS-403-7-w-vditor-vue\w-vditor-vue\node_modules\vditor\dist\index.js as it exceeds the max of 500KB.
+P8 base {"resize":0,"scroll":0}
+P8 lute {"st":{"loading":true,"loadingIcon":true},"inputs":[],"errs":[],"consoleErrors":["Failed to load resource: net::ERR_FAILED","[pageerror] Event"],"listenersAfterClose":{"resize":0,"scroll":1},"logs":[]}
+P8 i18n {"st":{"loading":true,"loadingIcon":true},"inputs":[],"errs":[],"consoleErrors":["Failed to load resource: net::ERR_FAILED"],"listenersAfterClose":{"resize":0,"scroll":0},"logs":[]}
+EXIT 0

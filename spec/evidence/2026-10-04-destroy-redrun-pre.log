@@ -1,0 +1,284 @@
+npm notice run w-vditor-vue@1.0.17 npx
+npm notice run mocha --no-parallel test/e2e-load.test.mjs --timeout 180000
+
+
+  e2e-load：編輯器載入與關閉
+invalid runin[null], set to 'browser'
+[BABEL] Note: The code generator has deoptimised the styling of C:\opensrc\開源-JS-403-7-w-vditor-vue\w-vditor-vue\node_modules\vditor\dist\index.js as it exceeds the max of 500KB.
+    ✔ E2E-001 [所見即所得] 開啟文件後顯示內容且「復原」停用 (3554ms)
+    ✔ E2E-001 [即時渲染] 開啟文件後顯示內容且「復原」停用 (3530ms)
+    ✔ E2E-001 [分割預覽] 開啟文件後顯示內容且「復原」停用 (3454ms)
+    ✔ E2E-002 [所見即所得] 輸入後按「復原」回到開啟時內容 (3667ms)
+    ✔ E2E-002 [即時渲染] 輸入後按「復原」回到開啟時內容 (3661ms)
+    ✔ E2E-002 [分割預覽] 輸入後按「復原」回到開啟時內容 (3725ms)
+    ✔ E2E-003 [所見即所得] 網路較慢時仍顯示文件內容 (3599ms)
+    ✔ E2E-003 [即時渲染] 網路較慢時仍顯示文件內容 (3601ms)
+    ✔ E2E-003 [分割預覽] 網路較慢時仍顯示文件內容 (3544ms)
+    ✔ E2E-004 [所見即所得] 頁面自備語系資料時顯示文件內容 (2158ms)
+    ✔ E2E-005 [所見即所得] 關閉後重新開啟編輯器仍顯示內容 (2270ms)
+    ✔ E2E-006 [所見即所得] 同頁兩個編輯器各自顯示內容 (2168ms)
+    ✔ E2E-007 [所見即所得] 網路較慢時兩個編輯器仍各自顯示內容 (3661ms)
+    ✔ E2E-008 [所見即所得] 載入中收到資料時顯示最新資料 (3023ms)
+    ✔ E2E-009 [所見即所得] 自備語系資料且載入中收到資料 (2813ms)
+    ✔ E2E-010 [所見即所得] 頁面給予空值時顯示空白 (1861ms)
+    ✔ E2E-011 [所見即所得] 頁面給予數字時以文字顯示 (556ms)
+    ✔ E2E-012 [所見即所得] 載入完成時通知頁面一次 (2114ms)
+    ✔ E2E-013 [所見即所得] 唯讀文件載入完成通知時已為唯讀 (1682ms)
+    1) E2E-014 [所見即所得] 語系資料送達前關閉編輯器不留殘餘
+    2) E2E-015 [所見即所得] 排版引擎送達前關閉編輯器不留殘餘
+    3) E2E-015 [即時渲染] 排版引擎送達前關閉編輯器不留殘餘
+    4) E2E-015 [分割預覽] 排版引擎送達前關閉編輯器不留殘餘
+    ✔ E2E-016 [所見即所得] 載入完成後關閉編輯器不留殘餘 (1754ms)
+    5) E2E-017 [所見即所得] 排版引擎無法取得時停留在載入圖示
+    ✔ E2E-018 [所見即所得] 語系資料無法取得時停留在載入圖示 (2530ms)
+    ✔ E2E-019 [所見即所得] 匯出選單只提供 Markdown 與 HTML (2128ms)
+    ✔ E2E-020 [所見即所得] 頁面另給設定內容時以頁面內容為準 (2086ms)
+    ✔ E2E-021 [所見即所得] 啟用快取時以頁面內容為準 (2072ms)
+    ✔ E2E-022 [所見即所得] 語系設定不合法時停留在載入圖示 (4434ms)
+    ✔ E2E-023 [所見即所得] 啟用快取卻未給識別碼時停留在載入圖示 (4520ms)
+    ✔ E2E-024 [所見即所得] 關閉時尚未回傳之輸入不再回傳 (3680ms)
+    6) E2E-025 [所見即所得] 語系資料於關閉後才無法取得時不顯示訊息
+    7) E2E-026 [所見即所得] 排版引擎無法取得時反覆開關編輯器不累積事件監聽
+    8) E2E-027 [所見即所得] 編輯模式設定不合法時停留在載入圖示
+
+
+  27 passing (2m)
+  8 failing
+
+  1) e2e-load：編輯器載入與關閉
+       E2E-014 [所見即所得] 語系資料送達前關閉編輯器不留殘餘:
+
+      AssertionError [ERR_ASSERTION]: ["i18n:request","i18n:finished","lute:request","lute:finished","icons:request","icons:finished"]
+      + expected - actual
+
+      -false
+      +true
+      
+      at Context.<anonymous> (file:///C:/opensrc/%E9%96%8B%E6%BA%90-JS-403-7-w-vditor-vue/w-vditor-vue/test/e2e-load.test.mjs:300:16)
+
+  2) e2e-load：編輯器載入與關閉
+       E2E-015 [所見即所得] 排版引擎送達前關閉編輯器不留殘餘:
+
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+... Skipped lines
+
+  {
+    'window.visualViewport': {},
+    document: {
+      keydown: 1
+    },
+...
+      pointerup: 1,
++     scroll: 1,
+      touchcancel: 1,
+      touchend: 1,
+      touchstart: 1
+    }
+  }
+
+      + expected - actual
+
+           "mousemove": 1
+           "mouseup": 1
+           "pointerdown": 1
+           "pointerup": 1
+      -    "scroll": 1
+           "touchcancel": 1
+           "touchend": 1
+           "touchstart": 1
+         }
+      
+      at Context.<anonymous> (file:///C:/opensrc/%E9%96%8B%E6%BA%90-JS-403-7-w-vditor-vue/w-vditor-vue/test/e2e-load.test.mjs:326:20)
+
+  3) e2e-load：編輯器載入與關閉
+       E2E-015 [即時渲染] 排版引擎送達前關閉編輯器不留殘餘:
+
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+... Skipped lines
+
+  {
+    'window.visualViewport': {},
+    document: {
+      keydown: 1
+    },
+...
+      pointerup: 1,
++     scroll: 1,
+      touchcancel: 1,
+      touchend: 1,
+      touchstart: 1
+    }
+  }
+
+      + expected - actual
+
+           "mousemove": 1
+           "mouseup": 1
+           "pointerdown": 1
+           "pointerup": 1
+      -    "scroll": 1
+           "touchcancel": 1
+           "touchend": 1
+           "touchstart": 1
+         }
+      
+      at Context.<anonymous> (file:///C:/opensrc/%E9%96%8B%E6%BA%90-JS-403-7-w-vditor-vue/w-vditor-vue/test/e2e-load.test.mjs:326:20)
+
+  4) e2e-load：編輯器載入與關閉
+       E2E-015 [分割預覽] 排版引擎送達前關閉編輯器不留殘餘:
+
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+... Skipped lines
+
+  {
+    'window.visualViewport': {},
+    document: {
+      keydown: 1
+    },
+...
+      pointerup: 1,
++     scroll: 1,
+      touchcancel: 1,
+      touchend: 1,
+      touchstart: 1
+    }
+  }
+
+      + expected - actual
+
+           "mousemove": 1
+           "mouseup": 1
+           "pointerdown": 1
+           "pointerup": 1
+      -    "scroll": 1
+           "touchcancel": 1
+           "touchend": 1
+           "touchstart": 1
+         }
+      
+      at Context.<anonymous> (file:///C:/opensrc/%E9%96%8B%E6%BA%90-JS-403-7-w-vditor-vue/w-vditor-vue/test/e2e-load.test.mjs:326:20)
+
+  5) e2e-load：編輯器載入與關閉
+       E2E-017 [所見即所得] 排版引擎無法取得時停留在載入圖示:
+
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+... Skipped lines
+
+  {
+    'window.visualViewport': {},
+    document: {
+      keydown: 1
+    },
+...
+      pointerup: 1,
++     scroll: 1,
+      touchcancel: 1,
+      touchend: 1,
+      touchstart: 1
+    }
+  }
+
+      + expected - actual
+
+           "mousemove": 1
+           "mouseup": 1
+           "pointerdown": 1
+           "pointerup": 1
+      -    "scroll": 1
+           "touchcancel": 1
+           "touchend": 1
+           "touchstart": 1
+         }
+      
+      at Context.<anonymous> (file:///C:/opensrc/%E9%96%8B%E6%BA%90-JS-403-7-w-vditor-vue/w-vditor-vue/test/e2e-load.test.mjs:362:16)
+
+  6) e2e-load：編輯器載入與關閉
+       E2E-025 [所見即所得] 語系資料於關閉後才無法取得時不顯示訊息:
+
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+1 !== 0
+
+      + expected - actual
+
+      -1
+      +0
+      
+      at Context.<anonymous> (file:///C:/opensrc/%E9%96%8B%E6%BA%90-JS-403-7-w-vditor-vue/w-vditor-vue/test/e2e-load.test.mjs:481:16)
+
+  7) e2e-load：編輯器載入與關閉
+       E2E-026 [所見即所得] 排版引擎無法取得時反覆開關編輯器不累積事件監聽:
+
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+... Skipped lines
+
+  {
+    'window.visualViewport': {},
+    document: {
+      keydown: 1
+    },
+...
+      pointerup: 1,
++     scroll: 3,
+      touchcancel: 1,
+      touchend: 1,
+      touchstart: 1
+    }
+  }
+
+      + expected - actual
+
+           "mousemove": 1
+           "mouseup": 1
+           "pointerdown": 1
+           "pointerup": 1
+      -    "scroll": 3
+           "touchcancel": 1
+           "touchend": 1
+           "touchstart": 1
+         }
+      
+      at Context.<anonymous> (file:///C:/opensrc/%E9%96%8B%E6%BA%90-JS-403-7-w-vditor-vue/w-vditor-vue/test/e2e-load.test.mjs:510:16)
+
+  8) e2e-load：編輯器載入與關閉
+       E2E-027 [所見即所得] 編輯模式設定不合法時停留在載入圖示:
+
+      AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+... Skipped lines
+
+  {
+    'window.visualViewport': {},
+    document: {
+      keydown: 1
+    },
+...
+      pointerup: 1,
++     scroll: 1,
+      touchcancel: 1,
+      touchend: 1,
+      touchstart: 1
+    }
+  }
+
+      + expected - actual
+
+           "mousemove": 1
+           "mouseup": 1
+           "pointerdown": 1
+           "pointerup": 1
+      -    "scroll": 1
+           "touchcancel": 1
+           "touchend": 1
+           "touchstart": 1
+         }
+      
+      at Context.<anonymous> (file:///C:/opensrc/%E9%96%8B%E6%BA%90-JS-403-7-w-vditor-vue/w-vditor-vue/test/e2e-load.test.mjs:532:16)
+
+
+
