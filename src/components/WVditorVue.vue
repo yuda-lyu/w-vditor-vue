@@ -95,6 +95,10 @@ function normEcho(v) {
 }
 
 
+//LOCK_EVENTS, 唯讀期間於組件根之capture階段攔截之事件, 註冊與移除共用(guardLock依事件分類處置)
+let LOCK_EVENTS = ['click', 'touchstart', 'keydown', 'keyup', 'focus', 'blur', 'input', 'compositionstart', 'compositionend', 'drop']
+
+
 let def_settings = {
     mode: 'wysiwyg', //sv: 雙欄位, ir:即時渲染, wysiwyg:所見即所得
     // debugger: true,
@@ -241,7 +245,7 @@ let def_settings = {
  * @vue-prop {Boolean} [hintShadow=true] 輸入提示窗是否顯示陰影布林值，預設true
  * @vue-prop {String} [hintShadowStyle='0 5px 5px -3px rgba(0,0,0,.2), 0 8px 10px 1px rgba(0,0,0,.14), 0 3px 14px 2px rgba(0,0,0,.12)'] 輸入提示窗陰影樣式字串，預設'0 5px 5px -3px rgba(0,0,0,.2), 0 8px 10px 1px rgba(0,0,0,.14), 0 3px 14px 2px rgba(0,0,0,.12)'
  * @vue-prop {Number} [cmpZIndex=3000] 輸入提示窗使用z-index數字，預設3000
- * @vue-prop {Boolean} [editable=true] 輸入是否為編輯模式布林值，給予false則編輯器為唯讀，可隨時切換(例如父層上傳資料期間鎖定編輯)，預設true。唯讀期間組件維持編輯區不可編輯、編輯類工具列與復原重做停用、編輯區失焦並關閉提示區，且攔截編輯區內核取方塊、圖片與內容下方空白處之點擊，焦點位於編輯區內(例如以Tab鍵移入)時其按鍵不交由vditor處理亦不往外傳遞(保留Tab移動焦點、捲動、開啟連結、複製等瀏覽器預設行為)，使用者無法改動內容；唯讀期間父層仍可變更value；鎖定前之最後輸入可能於鎖定後才回拋
+ * @vue-prop {Boolean} [editable=true] 輸入是否為編輯模式布林值，給予false則編輯器為唯讀，可隨時切換(例如父層上傳資料期間鎖定編輯)，預設true。唯讀期間組件維持編輯區不可編輯、編輯類工具列與復原重做停用，鎖定時編輯區失焦並關閉提示區，編輯區內之按鍵、輸入(含其內之表單控制項)、核取方塊、圖片與內容下方空白處之點擊，以及停用中之工具列按鈕皆不交由vditor處理，使用者無法改動內容。唯讀期間同原生readonly，編輯區仍可以Tab鍵聚焦(內容超出時可捲動，可聚焦其中之連結、核取方塊、表格與程式碼區塊)，滑鼠、觸控等非鍵盤取得之焦點則不保留；焦點位於編輯區內時其按鍵不往外傳遞(頁面於capture階段之監聽仍收得到，並保留Tab移動焦點、捲動、開啟連結、複製等瀏覽器預設行為)。唯讀期間settings.focus、settings.blur(由組件代為呼叫)、settings.select、settings.unSelect、settings.link.click與圖片預覽照常，settings.keydown、settings.esc、settings.ctrlEnter不呼叫；自訂工具列項目不由組件停用，鎖定前已開始之settings.upload上傳與settings.comment評論功能不在唯讀保證內。唯讀期間父層仍可變更value；鎖定前之最後輸入可能於鎖定後才回拋
  * @vue-event {String} input 編輯器內容變更時發射(使用者輸入、刪除、貼上、工具列操作、復原或重做，或由提示區點選插入內容)，帶出當前markdown字串，供v-model接收；wysiwyg與ir模式多數輸入於停止輸入hintTimeDetect毫秒後發射，sv模式每次輸入即發射；組件銷毀時尚未發射之最後輸入不再回拋
  * @vue-slot {Object} content 提示區內容之渲染slot，需搭配keyHint使用，slot props為{ hint, funInsert, funHide }，hint為當前觸發之keyHint字串，funInsert(v)為插入v至編輯器游標處之函數(v以HTML片段插入，含使用者輸入等不可信資料時須由呼叫端跳脫；唯讀或編輯器未就緒時不插入)，funHide()為隱藏提示區之函數
  */
@@ -343,9 +347,9 @@ export default {
         vo.valueEmittedLast = null //最後回拋之值, 父層回寫該值時不重載, null代表載入後尚未回拋
         vo.valueLoadedMd = '' //上次載入value後編輯器之內容, 供判斷使用者是否已編輯(含尚未回拋之輸入)
         vo.editedAfterLoad = false //自上次載入value後使用者是否已編輯(由input回呼設定, 保留歷史之載入亦設定), 供父層變更value時判斷是否重設復原起點
-        vo.lockObserver = null //唯讀期間監看工具列與編輯區之MutationObserver
+        vo.lockObserver = null //唯讀期間監看工具列與編輯區之MutationObserver, 存在即代表唯讀已套用(isLockApplied)
         vo.lockTypes = [] //鎖定當下已停用之工具列項目, 供唯讀期間檢查是否被重新啟用
-        vo.fLockGuard = null //唯讀期間攔截vditor於編輯區之點擊與鍵盤處理之監聽函數
+        vo.fLockGuard = null //唯讀期間攔截vditor處理之監聽函數(LOCK_EVENTS, 由guardLock處置)
 
     },
     mounted: function() {
@@ -416,37 +420,12 @@ export default {
                 console.log(err)
             })
 
-        //fLockGuard, 唯讀期間攔截vditor於編輯區之點擊與鍵盤處理, vditor之點擊與按鍵處理皆不檢查唯讀:
-        //點擊核取方塊會勾選並回拋(vditor/src/ts/wysiwyg/index.ts:412-423、ir/index.ts:140-147), 點擊圖片會開啟可編輯之圖片彈窗(wysiwyg/index.ts:427-433),
-        //點擊內容下方空白處會新增空段落(wysiwyg/index.ts:450-463、ir/index.ts:191-204, 解鎖後之輸入會落入該段);
-        //焦點位於編輯區內(以Tab鍵移入編輯區, 或點擊核取方塊、連結)時, 按鍵處理與快捷鍵會改動內容並回拋(vditor/src/ts/util/editorCommonEvent.ts:116-230)
+        //fLockGuard, 唯讀期間攔截vditor之處理(處置詳見guardLock), touchstart僅供iPhone之工具列(vditor以touchstart代替click)故設passive
         vo.fLockGuard = (e) => {
-
-            //check
-            if (vo.stage !== 'ready' || vo.editable) {
-                return
-            }
-            let ele = vo.getEditorElement()
-            let t = e.target
-            if (!isEle(ele) || !isEle(t) || !ele.contains(t)) {
-                return
-            }
-
-            //keydown、keyup, 不交由vditor處理, 不阻止瀏覽器預設行為(Tab移動焦點、方向鍵捲動、Enter開啟連結、複製)
-            if (e.type !== 'click') {
-                e.stopPropagation()
-                return
-            }
-
-            //click, 核取方塊(含鍵盤空白鍵觸發之click)、圖片、內容下方空白處(點擊對象為編輯區本身)不交由vditor處理, 連結照常由vditor開啟
-            if (t.tagName === 'INPUT' || t.tagName === 'IMG' || t === ele) {
-                e.preventDefault()
-                e.stopPropagation()
-            }
-
+            vo.guardLock(e)
         }
-        each(['click', 'keydown', 'keyup'], (k) => {
-            vo.$el.addEventListener(k, vo.fLockGuard, true)
+        each(LOCK_EVENTS, (k) => {
+            vo.$el.addEventListener(k, vo.fLockGuard, { capture: true, passive: k === 'touchstart' })
         })
 
         //BuildPopper
@@ -489,7 +468,7 @@ export default {
 
         //fLockGuard
         if (vo.fLockGuard) {
-            each(['click', 'keydown', 'keyup'], (k) => {
+            each(LOCK_EVENTS, (k) => {
                 vo.$el.removeEventListener(k, vo.fLockGuard, true)
             })
             vo.fLockGuard = null
@@ -807,18 +786,159 @@ export default {
             //disabled
             vo.contentEditor.disabled()
 
-            //blur, 焦點位於編輯區內(編輯區本身或其內之連結、核取方塊)時使其失焦, 鎖定後之鍵盤操作回到頁面; 唯讀期間編輯區內之按鍵另由fLockGuard攔截
+            //blurEditor, 焦點位於編輯區內時使其失焦, 鎖定後之鍵盤操作回到頁面; 此時唯讀尚未套用, vditor照常保存選取範圍並呼叫settings.blur
+            vo.blurEditor()
+
+            //check, settings.blur可能於回呼內銷毀組件或切換editable
+            if (vo.stage !== 'ready' || vo.editable) {
+                return
+            }
+
+            //hideHint, 唯讀期間不可經提示區插入
+            vo.hideHint()
+
+            //watchLock, 唯讀期間維持唯讀, 建立後即為唯讀已套用
+            vo.watchLock()
+
+            //blurEditor, vditor之失焦處理於選取不在編輯區內且無保存範圍時會拉回焦點(vditor/src/ts/util/selection.ts:17), 唯讀已套用後再確認一次(此時失焦已不交vditor處理)
+            vo.blurEditor()
+
+        },
+
+        blurEditor: function() {
+            //令編輯區內持有焦點者(編輯區本身或其內之連結、核取方塊、表格等)失焦
+
+            let vo = this
+
             let ele = vo.getEditorElement()
             let ae = document.activeElement
             if (isEle(ele) && isEle(ae) && ele.contains(ae)) {
                 ae.blur()
             }
 
-            //hideHint, 唯讀期間不可經提示區插入
-            vo.hideHint()
+        },
 
-            //watchLock, 唯讀期間維持唯讀
-            vo.watchLock()
+        releaseFocus: function() {
+            //唯讀已套用期間令編輯區內非以鍵盤取得之焦點失焦, 由guardLock延後呼叫
+
+            let vo = this
+
+            //check
+            if (vo.stage !== 'ready' || !vo.isLockApplied()) {
+                return
+            }
+
+            //blur, 期間若改以鍵盤移動焦點(:focus-visible)則保留
+            let ele = vo.getEditorElement()
+            let ae = document.activeElement
+            if (isEle(ele) && isEle(ae) && ele.contains(ae) && !ae.matches(':focus-visible')) {
+                ae.blur()
+            }
+
+        },
+
+        isLockApplied: function() {
+            //唯讀是否已套用: lockObserver只由applyEditable之鎖定分支於失焦後建立、解鎖分支與銷毀時移除, 故lockObserver非null即stage為ready且鎖定分支已完成失焦
+            let vo = this
+            return vo.lockObserver !== null
+        },
+
+        guardLock: function(e) {
+            //唯讀期間攔截vditor之處理(由fLockGuard於組件根capture階段呼叫), vditor之點擊、按鍵、焦點與輸入處理皆不檢查唯讀:
+            //點擊核取方塊會勾選並回拋(vditor/src/ts/wysiwyg/index.ts:412-423、ir/index.ts:140-147), 點擊圖片會開啟可編輯之圖片彈窗(wysiwyg/index.ts:427-433),
+            //點擊內容下方空白處會新增空段落(wysiwyg/index.ts:450-463、ir/index.ts:191-204, 解鎖後之輸入會落入該段);
+            //焦點位於編輯區內時按鍵處理與快捷鍵會改動內容並回拋(util/editorCommonEvent.ts:116-230), 其內之表單控制項(程式碼複製鈕之textarea、HTML區塊之input)之輸入會經vditor回拋(wysiwyg/index.ts:332、ir/index.ts:119);
+            //編輯區失焦時經getEditorRange拉回焦點(util/editorCommonEvent.ts:41-57、util/selection.ts:17), 使Tab鍵、頁面程式聚焦或點擊他處無法移走焦點;
+            //停用中之標題鈕先清除渲染計時器才檢查停用(toolbar/Headings.ts:35-38), 會使鎖定前最後輸入不再回拋
+            //點擊與按鍵類事件以prop判斷(父層一鎖定即防護), 焦點與輸入類事件以唯讀已套用判斷(鎖定時之失焦與組字提交仍交vditor)
+
+            let vo = this
+
+            //check
+            if (vo.stage !== 'ready') {
+                return
+            }
+            let t = e.target
+            if (!isEle(t)) {
+                return
+            }
+            let type = e.type
+            let applied = vo.isLockApplied()
+            let locked = !vo.editable || applied
+
+            //toolbar, 停用中之工具列按鈕不交由vditor處理(含鍵盤Enter、空白鍵觸發之click)
+            if (type === 'click' || type === 'touchstart') {
+                let btn = t.closest('.vditor-toolbar button')
+                if (isEle(btn) && vo.$el.contains(btn)) {
+                    if (locked && btn.classList.contains('vditor-menu--disabled')) {
+                        if (type === 'click') {
+                            e.preventDefault()
+                        }
+                        e.stopPropagation()
+                    }
+                    return
+                }
+            }
+
+            //check, 以下僅處理當前模式編輯區內之事件
+            let ele = vo.getEditorElement()
+            if (!isEle(ele) || !ele.contains(t)) {
+                return
+            }
+
+            //keydown、keyup, 不交由vditor處理, 不阻止瀏覽器預設行為(Tab移動焦點、方向鍵捲動、Enter開啟連結、複製)
+            if (type === 'keydown' || type === 'keyup') {
+                if (locked) {
+                    e.stopPropagation()
+                }
+                return
+            }
+
+            //click, 核取方塊(含鍵盤空白鍵觸發之click)、圖片、內容下方空白處(點擊對象為編輯區本身)不交由vditor處理, 連結照常由vditor開啟
+            if (type === 'click') {
+                if (locked && (t.tagName === 'INPUT' || t.tagName === 'IMG' || t === ele)) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                }
+                return
+            }
+
+            //input、compositionstart、compositionend、drop, 編輯區內表單控制項之輸入不交由vditor處理, 控制項本身照常(不屬markdown內容)
+            if (type === 'input' || type === 'compositionstart' || type === 'compositionend' || type === 'drop') {
+                if (applied) {
+                    e.stopPropagation()
+                }
+                return
+            }
+
+            //focus、blur
+            if (type === 'focus' || type === 'blur') {
+
+                //check
+                if (!applied) {
+                    return
+                }
+
+                //編輯區本身之焦點變化不交由vditor處理(避免失焦時拉回焦點), 改由組件呼叫settings.focus、settings.blur, 同原生readonly照常通知;
+                //子元素之focus、blur不冒泡而不會觸發vditor之處理, 不攔截以免干擾內容中元素自身之處理
+                if (t === ele) {
+                    e.stopPropagation()
+                    let opt = get(vo, ['contentEditor', 'vditor', 'options'], null)
+                    let f = get(opt, type, null)
+                    if (isfun(f)) {
+                        f.call(opt, vo.contentEditor.getValue()) //依vditor原呼叫方式(vditor/src/ts/util/editorCommonEvent.ts:23、:54)以合併後之設定為接收者
+                    }
+                }
+
+                //focus, 非以鍵盤取得之焦點(滑鼠、觸控、右鍵、拖曳等, 不符:focus-visible)不留在唯讀之編輯區內, 延後失焦以免干擾進行中之指標操作;
+                //以Tab鍵取得之焦點保留, 供捲動、聚焦連結、表格與程式碼區塊
+                if (type === 'focus' && !t.matches(':focus-visible')) {
+                    setTimeout(() => {
+                        vo.releaseFocus()
+                    }, 0)
+                }
+
+            }
 
         },
 
@@ -826,6 +946,11 @@ export default {
             //唯讀期間以MutationObserver監看組件內之class與contenteditable, 被重新啟用時即改回唯讀
 
             let vo = this
+
+            //check, 組件已銷毀(例如settings.blur回呼內銷毀)時不建立
+            if (vo.stage !== 'ready') {
+                return
+            }
 
             //lockTypes, 鎖定當下已停用之工具列項目
             vo.lockTypes = [...vo.$el.querySelectorAll('.vditor-toolbar button[data-type].vditor-menu--disabled')].map((ele) => {
@@ -914,6 +1039,18 @@ export default {
             //而PDF匯出會於iframe內重建vditor環境, 額外由cdn取得dist/index.css、dist/method.min.js、
             //js/i18n/zh_CN.js(固定zh_CN, 不隨options.lang)與hljs樣式共4項, 內網無法取得,
             //故於toolbar渲染完成後直接移除該子項
+
+            //vditorExportIframe, 僅供PDF匯出且高度為0而不可見(vditor/src/ts/ui/initUI.ts:76-78), PDF匯出已移除, 移出Tab鍵順序,
+            //避免唯讀時以Tab鍵離開編輯區後焦點落在看不見之元素(可編輯時Tab鍵由vditor插入定位字元而不會到達)
+            let ifr = null
+            try {
+                ifr = vo.$el.querySelector('iframe#vditorExportIframe')
+            }
+            catch (err) {}
+            if (isEle(ifr)) {
+                ifr.setAttribute('tabindex', '-1')
+            }
+
             let n = 0
             let t = setInterval(() => {
                 n++

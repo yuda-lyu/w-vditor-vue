@@ -28,7 +28,8 @@
 //R15 就緒後父層切換editable(例如上傳期間鎖定): false時唯讀且輸入無效、不回拋, 改回true後可輸入; 初始化期間切換則於就緒時套用最新之editable;
 //    鎖定期間維持唯讀一致: 鎖定前最後輸入之在途回拋與寫入復原堆疊、鎖定期間父層載入新內容, 皆不使復原鈕或編輯區重新啟用(解鎖後可復原);
 //    提示區關閉且無法插入; 編輯區內核取方塊與圖片點擊無效, 點擊內容下方空白處不新增段落(解鎖後之輸入落點不變); 打字中鎖定時編輯區失焦, 快捷鍵無效;
-//    唯讀期間焦點進入編輯區(以Tab鍵移入、點擊核取方塊)時按鍵與快捷鍵無效
+//    唯讀期間以Tab鍵移入編輯區(編輯區本身、核取方塊、連結)時按鍵與快捷鍵無效、可捲動, 以Tab或Shift+Tab一次即離開, 頁面程式聚焦可移走焦點, settings.focus與settings.blur照常且成對;
+//    滑鼠點擊(含右鍵)取得之焦點不留在編輯區內, 之後之按鍵回到頁面; 編輯區內表單控制項之輸入不回拋; 停用之工具列按鈕不影響鎖定前輸入之回拋
 //R16 使用者以貼上、工具列、鍵盤復原與重做、全選刪除等方式變更內容(三種編輯模式): 一變更即回拋, 不重載, 之後之輸入接於末尾
 import assert from 'assert'
 import launchBrowser from 'w-package-tools-e2e/src/launchBrowser.mjs'
@@ -681,7 +682,7 @@ describe('e2e-init-undo', function() {
     for (let mode of ['wysiwyg', 'ir', 'sv']) {
 
         it(`R15 ${mode}模式打字中鎖定(編輯區持有焦點): 編輯區失焦, 標題與切換模式之快捷鍵無效`, async function() {
-            let { page, logs } = await t.openCase(browser, { mode })
+            let { page, logs } = await t.openCase(browser, { mode, focusLog: '1' })
             await t.waitReady(page)
             await t.sleep(1500)
             await t.typeAtEnd(page, 'a')
@@ -702,13 +703,43 @@ describe('e2e-init-undo', function() {
             assert.strictEqual(s1.text, s0.text) //R15: 內容不變(亦未切換模式)
             assert.strictEqual(s1.editable, 'false') //R15: 維持唯讀
             assert.strictEqual(info.inputs.length, info0.inputs.length) //R15: 不回拋
+            assert.deepStrictEqual(info.fl.slice(info0.fl.length), ['blur']) //R15: 鎖定時之失焦仍交vditor(保存選取範圍), settings.blur恰一次(防退化)
             assert.deepStrictEqual(logs, [])
         })
 
     }
 
     //唯讀時焦點仍可進入編輯區: 以Tab鍵可移入編輯區本身或其內之連結、核取方塊, 點擊核取方塊亦使其取得焦點
-    let VAL_RO = '# 標題\n\n- [ ] 待辦一\n- [x] 待辦二\n\n前文[連結](/test/_tmp/e2e-init-undo/page.html)後文\n\n末段文字\n'
+    let VAL_RO = '# 標題\n\n- [ ] 待辦一\n- [x] 待辦二\n\n前文[連結](/node_modules/vditor/package.json)後文\n\n末段文字\n'
+
+    //VAL_LONG, 超出可視高度且無可聚焦子元素之內容, 唯讀時以Tab鍵可移入編輯區本身(Chrome之可捲動容器)
+    let VAL_LONG = '# 標題\n\n' + Array.from({ length: 30 }, (v, i) => `第${i + 1}段文字`).join('\n\n') + '\n'
+
+    //logDocKeys, 記錄頁面document於bubble階段收到之按鍵(模擬父層之快捷鍵, 例如對話框以Esc關閉)
+    let logDocKeys = (page) => page.evaluate(() => {
+        window.__docKeys = []
+        document.addEventListener('keydown', (e) => {
+            window.__docKeys.push(e.key)
+        })
+    })
+
+    //focusOnEditorItself, 焦點是否位於可見編輯區本身
+    let focusOnEditorItself = (page) => page.evaluate(() => {
+        let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable]')].find((e) => e.offsetParent !== null)
+        return !!ed && document.activeElement === ed
+    })
+
+    //tabToEditorItself, 自頁首按鈕以Tab鍵將焦點移入編輯區本身
+    let tabToEditorItself = async (page) => {
+        await page.locator('#btnToggle').focus()
+        for (let k = 0; k < 80; k++) {
+            await page.keyboard.press('Tab')
+            if (await focusOnEditorItself(page)) {
+                return true
+            }
+        }
+        return false
+    }
 
     //keysRo, 換行、標題、刪除、空白(核取方塊之鍵盤勾選)、字元、切換模式之快捷鍵, 最後為Tab(縮排或插入定位字元)
     let keysRo = (mode) => ['Enter', 'Control+Alt+2', 'Backspace', 'Delete', 'Space', 'Z', keyModeSwitch(mode), 'Tab']
@@ -748,22 +779,30 @@ describe('e2e-init-undo', function() {
 
     for (let mode of ['wysiwyg', 'ir']) {
 
-        it(`R15 ${mode}模式唯讀時點擊核取方塊使焦點位於編輯區內再按鍵: 內容不變、不回拋、無錯誤`, async function() {
+        //以鍵盤(Tab)移至核取方塊後之按鍵(含空白鍵)由上一案涵蓋
+        it(`R15 ${mode}模式唯讀時以滑鼠左鍵與右鍵點擊核取方塊: 焦點不留在編輯區內, 之後之按鍵回到頁面且內容不變`, async function() {
             let { page, logs } = await t.openCase(browser, { mode, value: VAL_RO, editable: '0' })
             await t.waitReady(page)
             await t.sleep(1500)
+            await logDocKeys(page)
             let [s0] = await t.states(page)
             let cb = page.locator('.WVditorFix .vditor-reset input[type="checkbox"]').first()
             let checked0 = await cb.isChecked()
-            await cb.click()
-            assert.strictEqual(await focusInEditor(page), true) //前置: 點擊後焦點位於編輯區內之核取方塊
+            for (let button of ['left', 'right']) {
+                await cb.click({ button })
+                await t.sleep(300) //涵蓋延後之失焦
+                assert.strictEqual(await focusInEditor(page), false) //R15: 滑鼠取得之焦點不留在編輯區內
+                await page.keyboard.press('Escape')
+            }
+            let docKeys = await page.evaluate(() => window.__docKeys.slice())
+            assert.deepStrictEqual(docKeys, ['Escape', 'Escape']) //R15: 之後之按鍵回到頁面
             for (let key of keysRo(mode)) {
                 await page.keyboard.press(key)
             }
             await t.sleep(1000) //涵蓋vditor延後之回拋
             let [s1] = await t.states(page)
             let info = await t.pageInfo(page)
-            assert.strictEqual(await cb.isChecked(), checked0) //R15: 滑鼠點擊與空白鍵皆不改變核取狀態
+            assert.strictEqual(await cb.isChecked(), checked0) //R15: 核取狀態不變
             assert.strictEqual(s1.text, s0.text) //R15: 內容不變(亦未切換模式)
             assert.strictEqual(s1.editable, 'false') //R15: 維持唯讀
             assert.strictEqual(info.mdout, VAL_RO) //R15: value不變
@@ -799,6 +838,120 @@ describe('e2e-init-undo', function() {
             await t.sleep(700)
             let info = await t.pageInfo(page)
             assert.strictEqual(info.inputs[info.inputs.length - 1].trimEnd(), '# 標題\n\n末段文字Q') //R15: 解鎖後之輸入接於最後一段
+            assert.deepStrictEqual(logs, [])
+        })
+
+        //HTML區塊之表單控制項為可輸入之元素, 其input等事件冒泡至編輯區
+        it(`R15 ${mode}模式唯讀時於編輯區內之表單控制項(HTML區塊之input)輸入: 不回拋、value不變`, async function() {
+            let value = '# 標題\n\n<input type="text" value="x">\n\n末段文字\n'
+            let { page, logs } = await t.openCase(browser, { mode, value, editable: '0' })
+            await t.waitReady(page)
+            await t.sleep(1500)
+            await page.locator('#btnToggle').focus()
+            let reached = false
+            for (let k = 0; k < 80; k++) {
+                await page.keyboard.press('Tab')
+                reached = await page.evaluate(() => {
+                    let ae = document.activeElement
+                    return !!ae && ae.tagName === 'INPUT' && !!ae.closest('.WVditorFix .vditor-reset')
+                })
+                if (reached) {
+                    break
+                }
+            }
+            assert.strictEqual(reached, true) //前置: 以Tab鍵可移至編輯區內之input
+            await page.keyboard.type('Z')
+            await t.sleep(1000) //涵蓋vditor延後之回拋
+            let info = await t.pageInfo(page)
+            assert.deepStrictEqual(info.inputs, []) //R15: 不回拋
+            assert.strictEqual(info.mdout, value) //R15: value不變
+            assert.deepStrictEqual(logs, [])
+        })
+
+        //vditor之標題鈕先清除渲染計時器才檢查停用(node_modules/vditor/src/ts/toolbar/Headings.ts:35-38), sv模式每次輸入即同步回拋而不受影響
+        it(`R15 ${mode}模式輸入後隨即鎖定再點擊停用之標題鈕: 鎖定前之最後輸入仍回拋`, async function() {
+            let { page, logs } = await t.openCase(browser, { mode, writeMode: 'none', hintTimeDetect: '600' }) //防抖600ms, 確保點擊落於回拋之前
+            await t.waitReady(page)
+            await t.sleep(1500)
+            await t.typeSlowAtEnd(page, 'Z', 0)
+            await page.evaluate(() => {
+                window.__vm.editable = false //父層鎖定
+            })
+            await t.sleep(50)
+            let btn = page.locator('.WVditorFix .vditor-toolbar button[data-type="headings"]')
+            assert.strictEqual(await btn.evaluate((b) => b.classList.contains('vditor-menu--disabled')), true) //前置: 標題鈕已停用
+            await btn.click({ force: true })
+            await t.sleep(1200) //涵蓋防抖600ms後之回拋
+            let info = await t.pageInfo(page)
+            assert.strictEqual(info.inputs.length, 1) //R15: 鎖定前之最後輸入仍回拋
+            assert.ok(info.inputs[0].trimEnd().endsWith('Z'), JSON.stringify(info.inputs)) //R15
+            assert.deepStrictEqual(logs, [])
+        })
+
+    }
+
+    it('R15 wysiwyg模式唯讀時點擊連結: 照常另開連結, 焦點不留在編輯區內, 之後之Esc回到頁面', async function() {
+        let { page, logs } = await t.openCase(browser, { value: VAL_RO, editable: '0' })
+        await t.waitReady(page)
+        await t.sleep(1500)
+        await logDocKeys(page)
+        let [popup] = await Promise.all([
+            page.context().waitForEvent('page', { timeout: 5000 }),
+            page.locator('.WVditorFix .vditor-reset a').first().click(),
+        ])
+        assert.ok(popup) //R15: 連結照常另開
+        await popup.close()
+        await t.sleep(300) //涵蓋延後之失焦
+        assert.strictEqual(await focusInEditor(page), false) //R15: 滑鼠取得之焦點不留在編輯區內
+        await page.keyboard.press('Escape')
+        let docKeys = await page.evaluate(() => window.__docKeys.slice())
+        let info = await t.pageInfo(page)
+        assert.deepStrictEqual(docKeys, ['Escape']) //R15: 之後之按鍵回到頁面
+        assert.strictEqual(info.mdout, VAL_RO) //R15: value不變
+        assert.deepStrictEqual(info.inputs, []) //R15: 不回拋
+        assert.deepStrictEqual(logs, [])
+    })
+
+    for (let mode of ['wysiwyg', 'ir', 'sv']) {
+
+        it(`R15 ${mode}模式唯讀時以Tab鍵移入可捲動之編輯區本身: 方向鍵可捲動, Shift+Tab與Tab一次即離開且不落在看不見之元素, settings.focus與settings.blur成對`, async function() {
+            let { page, logs } = await t.openCase(browser, { mode, value: VAL_LONG, editable: '0', focusLog: '1' })
+            await t.waitReady(page)
+            await t.sleep(1500)
+            assert.strictEqual(await tabToEditorItself(page), true) //前置: 以Tab鍵可移入編輯區本身
+            let scrollTop = () => page.evaluate(() => [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable]')].find((e) => e.offsetParent !== null).scrollTop)
+            let top0 = await scrollTop()
+            await page.keyboard.press('PageDown')
+            await t.sleep(300)
+            assert.ok(await scrollTop() > top0) //R15: 鍵盤焦點保留, 可捲動唯讀之編輯區
+            await page.keyboard.press('Shift+Tab')
+            await t.sleep(200)
+            assert.strictEqual(await focusInEditor(page), false) //R15: Shift+Tab一次即離開(不被vditor拉回)
+            await page.keyboard.press('Tab')
+            await t.sleep(200)
+            assert.strictEqual(await focusOnEditorItself(page), true) //前置: 再以Tab鍵移入
+            await page.keyboard.press('Tab')
+            await t.sleep(200)
+            let after = await page.evaluate(() => (document.activeElement ? document.activeElement.tagName : null))
+            assert.strictEqual(await focusInEditor(page), false) //R15: Tab一次即離開(不被vditor拉回)
+            assert.notStrictEqual(after, 'IFRAME') //R15: 不落在看不見之匯出用iframe
+            let info = await t.pageInfo(page)
+            assert.deepStrictEqual(info.fl, ['focus', 'blur', 'focus', 'blur']) //R15: settings.focus與settings.blur照常且成對
+            assert.deepStrictEqual(info.inputs, []) //R15: 不回拋
+            assert.deepStrictEqual(logs, [])
+        })
+
+        it(`R15 ${mode}模式唯讀時焦點在編輯區本身, 頁面以程式聚焦其他元素: 焦點移出而不被拉回`, async function() {
+            let { page, logs } = await t.openCase(browser, { mode, value: VAL_LONG, editable: '0' })
+            await t.waitReady(page)
+            await t.sleep(1500)
+            assert.strictEqual(await tabToEditorItself(page), true) //前置: 以Tab鍵可移入編輯區本身
+            await page.evaluate(() => {
+                document.querySelector('#btnToggle').focus() //頁面程式聚焦(例如對話框開啟時自動聚焦)
+            })
+            await t.sleep(300)
+            let id = await page.evaluate(() => (document.activeElement ? document.activeElement.id : null))
+            assert.strictEqual(id, 'btnToggle') //R15: 焦點移至頁面指定之元素
             assert.deepStrictEqual(logs, [])
         })
 

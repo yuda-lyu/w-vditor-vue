@@ -101,6 +101,7 @@ let pageHtml = `<!doctype html>
         window.__errs = []
         window.__inputs = []
         window.__after = []
+        window.__fl = []
         Vue.config.errorHandler = function(err, vm, info) {
             window.__errs.push('vue[' + info + ']: ' + (err && err.message))
             console.error(err)
@@ -124,6 +125,15 @@ let pageHtml = `<!doctype html>
                 new Function(txt)()
                 settings.i18n = window.VditorI18n
                 delete window.VditorI18n
+            }
+            if (q.get('focusLog') === '1') {
+                //記錄settings.focus與settings.blur之回呼
+                settings.focus = function() {
+                    window.__fl.push('focus')
+                }
+                settings.blur = function() {
+                    window.__fl.push('blur')
+                }
             }
             if (q.get('after') === '1') {
                 settings.after = function() {
@@ -351,6 +361,7 @@ async function pageInfo(page) {
             inputs: window.__inputs.slice(),
             errs: window.__errs.slice(),
             after: window.__after.slice(),
+            fl: window.__fl.slice(),
             mdout: document.querySelector('#mdout').textContent,
             existedAtDestroy: window.__existedAtDestroy,
             loadingAtDestroy: window.__loadingAtDestroy,
