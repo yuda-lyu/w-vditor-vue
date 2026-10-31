@@ -1,0 +1,59 @@
+{
+  "tag": "post-fix",
+  "console": [],
+  "pageerror": [],
+  "afterMounted": {
+    "hasVm": true,
+    "stage": "ready",
+    "keyHint": "/ht",
+    "bpIsNull": false,
+    "dataState": "hidden",
+    "attrState": "hidden",
+    "display": "none"
+  },
+  "hintShown": true,
+  "openedRead": {
+    "hasVm": true,
+    "stage": "ready",
+    "keyHint": "/ht",
+    "bpIsNull": false,
+    "dataState": "opened",
+    "attrState": "opened",
+    "display": "block"
+  },
+  "closedRead": {
+    "hasVm": true,
+    "stage": "ready",
+    "keyHint": "/ht",
+    "bpIsNull": false,
+    "dataState": "hidden",
+    "attrState": "hidden",
+    "display": "none"
+  },
+  "transitions": [
+    {
+      "t": 8,
+      "attr": "hidden",
+      "data": "hidden",
+      "display": "none"
+    },
+    {
+      "t": 140,
+      "attr": "opening",
+      "data": "opening",
+      "display": "block"
+    },
+    {
+      "t": 324,
+      "attr": "opened",
+      "data": "opened",
+      "display": "block"
+    },
+    {
+      "t": 1399,
+      "attr": "hidden",
+      "data": "hidden",
+      "display": "none"
+    }
+  ]
+}

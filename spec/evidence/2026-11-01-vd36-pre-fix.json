@@ -1,0 +1,23 @@
+{
+  "tag": "pre-fix",
+  "console": [
+    "[error] Error: invalid vo.state |     at http://127.0.0.1:8141/bundle/w-vditor-vue.umd.js:6:70227 |     at oe (http://127.0.0.1:8141/bundle/w-vditor-vue.umd.js:6:5489)"
+  ],
+  "pageerror": [],
+  "afterMounted": {
+    "hasVm": true,
+    "stage": "ready",
+    "keyHint": "/ht",
+    "bpIsNull": true,
+    "attrState": null,
+    "display": "none"
+  },
+  "hintShown": false,
+  "transitions": [
+    {
+      "t": 5,
+      "attr": null,
+      "display": "none"
+    }
+  ]
+}

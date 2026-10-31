@@ -1,6 +1,6 @@
 //e2e-setup: e2e測試之專案組態與專案專屬原語, 共用實作經./e2eLib.mjs單一橋接
 //- 每個測試檔為一個流程(spec/流程_*.md), 各自以固定port之本機靜態站與test/_tmp/<流程代號>/之編譯目錄執行, 供mocha --parallel並行
-//- 元件由現行src以rollup編譯(與toolg/gDistRollupComps.mjs同設定), 不依賴./dist; 環境變數E2E_SRC_DIR可改指他版src供紅燈驗證
+//- 元件由現行src以rollup編譯(與toolg/gDistRollupComps.mjs同設定), 預設不依賴./dist; 環境變數E2E_SRC_DIR可改指他版src供紅燈驗證, 環境變數E2E_DIST_DIR可改指現成dist資料夾(含w-vditor-vue.umd.js, 不編譯)供驗證dist
 //- 宿主頁test/host/index.html扮演父層頁面, 父層行為於開頁時以網址參數設定(setup); act階段只經宿主頁之按鈕、快捷鍵與編輯器之真鍵盤滑鼠
 //- 本模組之讀取類函數(states、hostInfo等)只供斷言觀察, 不改動頁面狀態
 import fs from 'fs'
@@ -82,6 +82,20 @@ function getSrcDir() {
     let fd = process.env.E2E_SRC_DIR ? path.resolve(process.env.E2E_SRC_DIR) : path.join(projRoot, 'src', 'components')
     if (!fs.existsSync(path.join(fd, 'WVditorVue.vue'))) {
         throw new Error(`找不到元件原始碼: ${path.join(fd, 'WVditorVue.vue')}`)
+    }
+    return fd
+}
+
+
+//getDistDir, 環境變數E2E_DIST_DIR有給時回傳該現成dist資料夾之絕對路徑(相對路徑以cwd解析), 否則回傳null; 此時不編譯原始碼, 靜態站直接供應該資料夾(測試結束不刪除)
+function getDistDir() {
+    if (!process.env.E2E_DIST_DIR) {
+        return null
+    }
+    let fd = path.resolve(process.env.E2E_DIST_DIR)
+    let fp = path.join(fd, 'w-vditor-vue.umd.js')
+    if (!fs.existsSync(fp)) {
+        throw new Error(`E2E_DIST_DIR找不到${fp}`)
     }
     return fd
 }
@@ -188,8 +202,11 @@ function createFlow(flow) {
     let server = null
 
     let setup = async () => {
-        await buildComponent(fdDist)
-        server = await startServer(port, fdDist)
+        let fdDistGiven = getDistDir()
+        if (!fdDistGiven) {
+            await buildComponent(fdDist)
+        }
+        server = await startServer(port, fdDistGiven || fdDist)
     }
 
     let teardown = async () => {
@@ -510,6 +527,57 @@ function hintItem(page) {
 }
 
 
+//hintPopperInfo, 觀察第i個編輯器之提示區浮層: 根節點(.WPopperFix)之state屬性(無節點為null)、是否可見(display非none)、
+//組件實例是否已建立提示區控制器bp(內部欄位之只讀白箱觀察, 使用者可觀察之等價結果為提示區能否出現)
+async function hintPopperInfo(page, i = 0) {
+    return page.evaluate((idx) => {
+        let fix = document.querySelectorAll('.WVditorFix')[idx]
+        let pop = fix ? fix.querySelector('.WPopperFix') : null
+        let vm = fix && fix.parentElement ? fix.parentElement.__vue__ : null
+        return {
+            state: pop ? pop.getAttribute('state') : null,
+            visible: !!pop && getComputedStyle(pop).display !== 'none',
+            bpBuilt: vm ? !!vm.bp : null,
+        }
+    }, i)
+}
+
+
+//startHintStateRecorder, 以MutationObserver記錄第i個編輯器提示區根節點state屬性之每次變化(觀察用, 不改動頁面狀態), 須於act前安裝
+async function startHintStateRecorder(page, i = 0) {
+    await page.evaluate((idx) => {
+        let fix = document.querySelectorAll('.WVditorFix')[idx]
+        let pop = fix.querySelector('.WPopperFix')
+        window.__hintStates = []
+        window.__hintStateObs = new MutationObserver(() => {
+            window.__hintStates.push(pop.getAttribute('state'))
+        })
+        window.__hintStateObs.observe(pop, { attributes: true, attributeFilter: ['state'] })
+    }, i)
+}
+
+
+//stopHintStateRecorder, 停止記錄並回傳state變化序列(相鄰重複去除)
+async function stopHintStateRecorder(page) {
+    let seq = await page.evaluate(() => {
+        window.__hintStateObs.disconnect()
+        return window.__hintStates
+    })
+    return seq.filter((v, k) => k === 0 || v !== seq[k - 1])
+}
+
+
+//waitHintState, 等第i個編輯器提示區根節點之state屬性成為指定值
+async function waitHintState(page, state, opt = {}) {
+    let { timeout = 5000, i = 0 } = opt
+    await waitUntilExist(page, `提示區state為${state}`, ([s, idx]) => {
+        let fix = document.querySelectorAll('.WVditorFix')[idx]
+        let pop = fix ? fix.querySelector('.WPopperFix') : null
+        return !!pop && pop.getAttribute('state') === s
+    }, { timeout, arg: [state, i] })
+}
+
+
 //clickEnd, 點擊編輯區並以Ctrl+End將游標移至文件末
 async function clickEnd(page, i = 0) {
     await editor(page, i).click()
@@ -747,6 +815,10 @@ export {
     toolbarButton,
     hostButton,
     hintItem,
+    hintPopperInfo,
+    startHintStateRecorder,
+    stopHintStateRecorder,
+    waitHintState,
     clickEnd,
     typeAtEnd,
     waitInputs,

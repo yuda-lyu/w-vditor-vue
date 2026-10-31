@@ -6,7 +6,8 @@ import assert from 'assert'
 import {
     MODES, MODE_NAMES, DOCS, visText, launchBrowser, createFlow,
     waitEditable, waitInputs, waitMdoutSynced, waitStatus, states, hostInfo,
-    editor, hintItem, typeAtEnd
+    editor, hintItem, typeAtEnd,
+    hintPopperInfo, startHintStateRecorder, stopHintStateRecorder, waitHintState
 } from './tools/e2e-setup.mjs'
 
 
@@ -122,6 +123,7 @@ describe('e2e-key-hint：提示區插入', function() {
             let [s1] = await states(page)
             let info = await hostInfo(page)
             assert.strictEqual(await hintItem(page).isVisible(), false) //①
+            assert.strictEqual((await hintPopperInfo(page)).state, 'hidden') //①(提示區於opening或opened時被取代內容而關閉, state須直接成為hidden)
             assert.strictEqual(s1.text, visText(mode, DOCS.SERVER)) //②
             assert.strictEqual(info.inputs.length, n0) //③
             assert.deepStrictEqual(logs, []) //④
@@ -145,6 +147,7 @@ describe('e2e-key-hint：提示區插入', function() {
             let [s1] = await states(page)
             let info = await hostInfo(page)
             assert.strictEqual(await hintItem(page).isVisible(), false) //①
+            assert.strictEqual((await hintPopperInfo(page)).state, 'hidden') //①(提示區於opening或opened時因鎖定而關閉, state須直接成為hidden)
             assert.ok(s1.text.endsWith('/ht'), s1.text) //②
             assert.strictEqual(info.inputs.length, n0) //③
             assert.strictEqual(s1.undoDisabled, true) //④
@@ -181,6 +184,59 @@ describe('e2e-key-hint：提示區插入', function() {
         assert.strictEqual(await hintItem(page).isVisible(), false) //①
         assert.ok(s.text.endsWith('a/ht'), s.text) //②
         assert.deepStrictEqual(logs, []) //③
+    })
+
+    for (let mode of MODES) {
+
+        //E2E-007 提示區開啟與關閉時狀態依序轉換(以「/ht」為例)
+        //①起點: 示範宿主頁, 觸發字串「/ht」 ②點擊: 編輯區、提示區之「插入XYZ」 ③看到: 提示區外層state依序為opening、opened、hidden ④輸入: 「 /ht」 ⑤之後: 提示區關閉、已插入XYZ ⑥副作用: 無(插入與回傳同E2E-001)
+        it(`E2E-007 [${MODE_NAMES[mode]}] 提示區開啟與關閉時狀態依序轉換（以「/ht」為例）`, async function() {
+            let { page, logs } = await flow.openReady(browser, { mode, keyHint: '/ht' })
+            let p0 = await hintPopperInfo(page)
+            assert.strictEqual(p0.state, 'hidden', JSON.stringify(p0)) //①
+            assert.strictEqual(p0.visible, false, JSON.stringify(p0)) //①
+            assert.strictEqual(p0.bpBuilt, true, JSON.stringify(p0)) //①
+            await startHintStateRecorder(page)
+            await typeAtEnd(page, ' /ht')
+            await waitInputs(page, '回傳結尾為觸發字串', { lastEndsWith: '/ht' })
+            await waitHintState(page, 'opened')
+            let p1 = await hintPopperInfo(page)
+            assert.strictEqual(p1.visible, true, JSON.stringify(p1)) //③
+            assert.strictEqual(await hintItem(page).isVisible(), true) //③
+            await hintItem(page).click()
+            await waitInputs(page, '插入後回傳含XYZ', { lastIncludes: 'XYZ' })
+            await waitHintState(page, 'hidden')
+            await page.waitForTimeout(600) //負向觀察窗: 涵蓋過場追蹤器之後備訊號(過場時長200ms加300ms)與其50ms重查, 關閉後state不得再變動
+            let seq = await stopHintStateRecorder(page)
+            let p2 = await hintPopperInfo(page)
+            let [s] = await states(page)
+            assert.deepStrictEqual(seq, ['opening', 'opened', 'hidden']) //②
+            assert.strictEqual(p2.state, 'hidden', JSON.stringify(p2)) //④
+            assert.strictEqual(p2.visible, false, JSON.stringify(p2)) //④
+            assert.strictEqual(await hintItem(page).isVisible(), false) //④
+            assert.ok(s.text.includes('XYZ'), s.text) //④
+            assert.ok(!s.text.includes('/ht'), s.text) //④
+            assert.deepStrictEqual(logs, []) //⑤
+        })
+
+    }
+
+    //E2E-008 未設定觸發字串時不出現提示區
+    //①起點: 示範宿主頁, 未設觸發字串 ②點擊: 編輯區 ③看到: 提示區不出現、state維持hidden ④輸入: 「 /ht」 ⑤之後: 文字照常保留 ⑥副作用: 頁面收到含/ht之內容
+    it(`E2E-008 [${MODE_NAMES.wysiwyg}] 未設定觸發字串時不出現提示區`, async function() {
+        let { page, logs } = await flow.openReady(browser, {})
+        await startHintStateRecorder(page)
+        await typeAtEnd(page, ' /ht')
+        await waitInputs(page, '回傳結尾為/ht', { lastEndsWith: '/ht' })
+        await page.waitForTimeout(1500) //負向觀察窗: 涵蓋提示偵測輪詢(50ms)與回傳防抖, 提示區不得出現、state不得變動
+        let seq = await stopHintStateRecorder(page)
+        let p = await hintPopperInfo(page)
+        let [s] = await states(page)
+        assert.strictEqual(await hintItem(page).isVisible(), false) //①
+        assert.strictEqual(p.state, 'hidden', JSON.stringify(p)) //②
+        assert.deepStrictEqual(seq, []) //②
+        assert.ok(s.text.endsWith('/ht'), s.text) //③
+        assert.deepStrictEqual(logs, []) //④
     })
 
 })

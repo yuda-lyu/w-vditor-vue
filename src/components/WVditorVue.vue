@@ -16,6 +16,7 @@
                 ref="divContent"
                 class="WPopperFix"
                 :style="`z-index:${cmpZIndex};`"
+                :state="state"
                 v-show="showPopper"
                 v-domresize
                 @domresize="updatePopper"
@@ -228,6 +229,12 @@ let def_settings = {
  *
  * 組件定位為單一編輯者之輸入組件，與原生input相同：載入父層給予之資料並顯示、內容一變更即回拋、依editable鎖定編輯；回拋資料要同步至其他組件或上傳伺服器、上傳期間是否鎖定編輯、多組件共用資料之單向同步，皆由父層負責。多組件或多人同時編輯同一份資料(共編)須父層與組件層皆支援CRDT等協作機制，非僅由編輯器單方處理，本組件目前不支援共編。
  *
+ * 提示區浮層(.WPopperFix)根節點提供可偵測之state屬性(語彙同w-component-vue之WTooltip與WDrawer)，供使用端與e2e判斷提示區是否已靜止，值與時機如下：
+ *   hidden: 未顯示，為初始值，提示區關閉後亦回到此值
+ *   opening: 開啟中，自提示區顯示起，至內層內容經200ms淡入與滑入至原位為止，期間浮層之位置與透明度恆定，但內層內容仍在變動
+ *   opened: 已開啟，內層內容過場已結束且位置不再變動
+ * 由BuildPopper依內層內容自身之transitionend落定，事件未觸發(如高負載)時由逾時後備落定，故state必定會落定；關閉無過場，由opened(開啟中途關閉則由opening)直接成為hidden，不使用hiding。未設keyHint時不會顯示提示區，state恆為hidden
+ *
  * @vue-prop {String} [value=''] 輸入markdown字串，為編輯器內容之唯一來源(settings.value與settings.cache之內容於初始化完成時皆被value取代)，可使用v-model雙向綁定，亦可只給value並於input事件內回寫或不回寫，null與undefined視為''，其他非字串會轉為字串，預設為''。編輯器初始化完成時載入當下之value(含初始化期間父層才給予之資料)並作為復原起點；之後value變更時，若等於組件最後回拋之值或編輯器當前內容則為回寫而不重載(比對時忽略結尾空白與換行符\r\n、\n之差異，開頭空白之增減屬內容變更)，否則以value為準載入：使用者尚未編輯時變更後之內容即成為新的復原起點，已有編輯則保留復原歷史；載入時若編輯區持有焦點，游標不保留。換載另一份文件或需捨棄編輯時，請以key重建組件
  * @vue-prop {Number} [height=400] 輸入編輯器高度數字，單位為px，預設為400
  * @vue-prop {Object} [settings={}] 輸入vditor設定物件，會覆蓋組件內建預設值，內建預設值詳見原始碼處def_settings，各設定項詳見vditor官方文件。settings、height、keyHint、hintTimeDetect皆於建立編輯器時採用，之後變更不生效，需變更時請以key重建組件。其中settings.input由組件接管；settings.after會於編輯器初始化完成且已載入value後呼叫一次，組件於初始化完成前即銷毀時則不呼叫；settings.cache.enable為true時須同時給予settings.cache.id。lute或語系檔無法載入、settings.lang或settings.mode不合法、settings.cache缺id、或初始化完成時處理失敗時，組件會停留於載入圖示
@@ -328,6 +335,7 @@ export default {
             transitionTime: 200,
             triggerWidth: null,
             contentStyle: '',
+            state: 'hidden', //hidden, opening, opened, 會由BuildPopper內更新, w-component-vue 2.5.35起BuildPopper要求vo須預先宣告state
 
             showPopper: false,
             placement: 'bottom-start', //定位左下
