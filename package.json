@@ -1,6 +1,6 @@
 {
   "name": "w-vditor-vue",
-  "version": "1.0.29",
+  "version": "1.0.30",
   "main": "dist/w-vditor-vue.umd.js",
   "dependencies": {
     "vditor": "^3.11.3",
@@ -21,7 +21,7 @@
     "vue": "^2.7.16",
     "w-jsonview-tree": "^1.0.39",
     "w-package-tools": "^1.1.23",
-    "w-package-tools-e2e": "^1.0.20"
+    "w-package-tools-e2e": "^1.0.22"
   },
   "scripts": {
     "serve": "vue-cli-service serve",

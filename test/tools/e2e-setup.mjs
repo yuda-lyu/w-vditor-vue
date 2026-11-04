@@ -1,5 +1,5 @@
 //e2e-setup: e2e測試之專案組態與專案專屬原語, 共用實作經./e2eLib.mjs單一橋接
-//- 每個測試檔為一個流程(spec/流程_*.md), 各自以固定port之本機靜態站與test/_tmp/<流程代號>/之編譯目錄執行, 供mocha --parallel並行
+//- 每個測試檔為一個流程(spec/流程_*.md), 各自以本機靜態站與test/_tmp/<流程代號>/之編譯目錄執行, 供mocha --parallel並行; 靜態站埠為基準埠, 被占用時自動換埠(基準埠與換埠見./e2ePorts.mjs, 絕不下殺占用者)
 //- 元件由現行src以rollup編譯(與toolg/gDistRollupComps.mjs同設定), 預設不依賴./dist; 環境變數E2E_SRC_DIR可改指他版src供紅燈驗證, 環境變數E2E_DIST_DIR可改指現成dist資料夾(含w-vditor-vue.umd.js, 不編譯)供驗證dist
 //- 宿主頁test/host/index.html扮演父層頁面, 父層行為於開頁時以網址參數設定(setup); act階段只經宿主頁之按鈕、快捷鍵與編輯器之真鍵盤滑鼠
 //- 本模組之讀取類函數(states、hostInfo等)只供斷言觀察, 不改動頁面狀態
@@ -9,23 +9,13 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import rollupFiles from 'w-package-tools/src/rollupFiles.mjs'
 import { launchBrowser, waitUntilExist, pollUntil, createKnownDefect } from './e2eLib.mjs'
+import { FLOW_PORTS, baseOf, reserveFlowPort, listenReserved } from './e2ePorts.mjs'
 
 
 let projRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..') //本模組位於test/tools, 上兩層為專案根
 let testDir = path.join(projRoot, 'test')
 let fdTmpRoot = path.join(testDir, '_tmp')
 let fdHost = path.join(testDir, 'host')
-
-
-//FLOW_PORTS, 流程代號與其靜態站port(≥8000、固定不隨機、與CLAUDE_rulebook.md之e2e映射一致)
-let FLOW_PORTS = {
-    'load': 8136,
-    'editing': 8137,
-    'parent-update': 8138,
-    'readonly': 8139,
-    'readonly-focus': 8140,
-    'key-hint': 8141,
-}
 
 
 //MODES, 編輯模式(各案例之變體迴圈), 名稱同vditor工具列「切換編輯模式」之選項文字
@@ -136,18 +126,17 @@ function resolveUnder(root, rel) {
 }
 
 
-//startServer, 本機靜態站: /host/為宿主頁, /bundle/為本流程編譯之元件, /node_modules/為vue與vditor資源, 其餘404
-function startServer(port, fdDist) {
-    let origin = `http://127.0.0.1:${port}`
+//createStaticHandler, 本機靜態站之請求處理: /host/為宿主頁, /bundle/為本流程編譯之元件, /node_modules/為vue與vditor資源, 其餘404; 與埠無關(URL解析之base僅供解析)
+function createStaticHandler(fdDist) {
     let roots = [
         ['/host/', fdHost],
         ['/bundle/', fdDist],
         ['/node_modules/', path.join(projRoot, 'node_modules')],
     ]
-    let server = http.createServer((req, res) => {
+    return (req, res) => {
         let pathname
         try {
-            pathname = decodeURIComponent(new URL(req.url, origin).pathname)
+            pathname = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname)
         }
         catch (err) {
             res.writeHead(400)
@@ -168,15 +157,7 @@ function startServer(port, fdDist) {
         }
         res.writeHead(200, { 'content-type': kpMime[path.extname(fp)] || 'application/octet-stream', 'cache-control': 'no-store' })
         fs.createReadStream(fp).pipe(res)
-    })
-    return new Promise((resolve, reject) => {
-        server.once('error', (err) => {
-            reject(new Error(`無法於127.0.0.1:${port}啟動測試站(${err.code}), 該port為本專案固定配發(CLAUDE_rulebook.md), 請確認未被其他程式佔用`))
-        })
-        server.listen(port, '127.0.0.1', () => {
-            resolve(server)
-        })
-    })
+    }
 }
 
 
@@ -190,29 +171,47 @@ function removeFlowDir(fdFlow) {
 }
 
 
-//createFlow, 建立一個流程之執行環境: setup於mocha之before(編譯並啟動靜態站), teardown於after(關站並刪除中介資料)
-function createFlow(flow) {
-    let port = FLOW_PORTS[flow]
-    if (!port) {
-        throw new Error(`未登錄之流程代號: ${flow}`)
-    }
-    let origin = `http://127.0.0.1:${port}`
+//createFlow, 建立一個流程之執行環境: setup於mocha之before(編譯, 預約埠並啟動靜態站), teardown於after(關站, 釋放預約並刪除中介資料)
+//靜態站埠為基準埠, 被占用時自動換埠(見./e2ePorts.mjs): 實際埠與origin於setup()完成後才確定(flow.port、flow.origin), 絕不下殺占用者
+//opt.basePort、opt.reserve、opt.listen僅供單元測試(改用動態取得之空閒埠與隔離之預約目錄, 免干擾並行中之e2e檔)
+function createFlow(flow, opt = {}) {
+    let base = baseOf(flow, opt)
+    let port = null
+    let origin = null
     let fdFlow = path.join(fdTmpRoot, flow)
     let fdDist = path.join(fdFlow, 'dist')
     let server = null
+    let reservation = null
 
     let setup = async () => {
         let fdDistGiven = getDistDir()
         if (!fdDistGiven) {
             await buildComponent(fdDist)
         }
-        server = await startServer(port, fdDistGiven || fdDist)
+        //編譯完才預約並立即綁定, 縮短「偵測空閒」與「綁定」之間隔
+        reservation = reserveFlowPort(flow, opt)
+        try {
+            let r = await listenReserved(reservation, base, () => http.createServer(createStaticHandler(fdDistGiven || fdDist)), opt.listen)
+            server = r.server
+            port = r.port
+            origin = `http://127.0.0.1:${port}`
+        }
+        catch (err) {
+            reservation.release()
+            reservation = null
+            throw err
+        }
+        console.log(`[e2e-port] 流程 ${flow} 之靜態站 ${origin}(基準埠 ${base})`)
     }
 
     let teardown = async () => {
         if (server) {
             await new Promise((resolve) => server.close(() => resolve()))
             server = null
+        }
+        if (reservation) {
+            reservation.release()
+            reservation = null
         }
         removeFlowDir(fdFlow)
     }
@@ -302,8 +301,13 @@ function createFlow(flow) {
 
     return {
         flow,
-        port,
-        origin,
+        base,
+        get port() {
+            return port
+        },
+        get origin() {
+            return origin
+        },
         setup,
         teardown,
         openCase,
