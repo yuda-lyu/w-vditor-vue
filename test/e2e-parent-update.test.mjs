@@ -223,8 +223,8 @@ describe('e2e-parent-update：頁面更新內容', function() {
         await page.keyboard.type(' ')
         await waitInputs(page, '回傳開頭空白之內容', { count: 1 })
         await waitUntilExist(page, '編輯區開頭空白已移除', () => {
-            let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable]')].find((e) => e.offsetParent !== null)
-            return !!ed && ed.innerText.startsWith('#')
+            let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable], .WVditorFix textarea.vditor-sv')].find((e) => e.offsetParent !== null)
+            return !!ed && (ed.tagName === 'TEXTAREA' ? ed.value : ed.innerText).startsWith('#')
         })
         let info = await hostInfo(page)
         let raw = await rawText(page)

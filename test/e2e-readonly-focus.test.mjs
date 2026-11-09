@@ -164,7 +164,7 @@ describe('e2e-readonly-focus：唯讀時之焦點', function() {
             let top0 = await editorScrollTop(page)
             await page.keyboard.press('PageDown')
             await waitUntilExist(page, '編輯區已捲動', (t) => {
-                let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable]')].find((e) => e.offsetParent !== null)
+                let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable], .WVditorFix textarea.vditor-sv')].find((e) => e.offsetParent !== null)
                 return ed.scrollTop > t
             }, { arg: top0 })
             assert.ok(await editorScrollTop(page) > top0) //②
@@ -174,7 +174,7 @@ describe('e2e-readonly-focus：唯讀時之焦點', function() {
             assert.strictEqual(await focusInEditor(page), false) //③
             await page.keyboard.press('Tab')
             await waitUntilExist(page, '焦點回到編輯區本身', () => {
-                let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable]')].find((e) => e.offsetParent !== null)
+                let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable], .WVditorFix textarea.vditor-sv')].find((e) => e.offsetParent !== null)
                 return !!ed && document.activeElement === ed
             })
             assert.strictEqual(await focusOnEditorItself(page), true) //④
@@ -235,9 +235,17 @@ describe('e2e-readonly-focus：唯讀時之焦點', function() {
             assert.ok(sel.trim().length > 0, JSON.stringify(sel)) //③
             assert.deepStrictEqual(info1.cb, ['select']) //③
             await page.mouse.click(box.x + box.width - 20, box.y + 20) //L2真滑鼠: 右上角空白處
-            await waitUntilExist(page, '取消選取通知', () => window.__cb.includes('unSelect'))
-            let info2 = await hostInfo(page)
-            assert.deepStrictEqual(info2.cb, ['select', 'unSelect']) //④
+            if (mode === 'sv') {
+                //分割預覽(vditor 4起為textarea)之取消選取不通知: vditor之select監聽只處理textarea之select事件, 取消選取不觸發該事件(可編輯與唯讀皆然, sv/index.ts:73-82), 故不等unSelect, 只以負向觀察窗確認無其他通知
+                await page.waitForTimeout(800) //負向觀察窗: 取消選取後不得出現任何新通知
+                let info2 = await hostInfo(page)
+                assert.deepStrictEqual(info2.cb, ['select']) //④(分割預覽)
+            }
+            else {
+                await waitUntilExist(page, '取消選取通知', () => window.__cb.includes('unSelect'))
+                let info2 = await hostInfo(page)
+                assert.deepStrictEqual(info2.cb, ['select', 'unSelect']) //④
+            }
             assert.deepStrictEqual(logs, []) //⑤
         })
 

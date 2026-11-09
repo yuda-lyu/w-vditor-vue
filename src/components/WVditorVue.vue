@@ -97,11 +97,11 @@ function normEcho(v) {
 
 
 //LOCK_EVENTS, 唯讀期間於組件根之capture階段攔截之事件, 註冊與移除共用(guardLock依事件分類處置)
-let LOCK_EVENTS = ['click', 'touchstart', 'keydown', 'keyup', 'focus', 'blur', 'input', 'compositionstart', 'compositionend', 'drop']
+let LOCK_EVENTS = ['click', 'touchstart', 'keydown', 'keyup', 'focus', 'blur', 'input', 'compositionstart', 'compositionend', 'drop', 'paste']
 
 
 let def_settings = {
-    mode: 'wysiwyg', //sv: 雙欄位, ir:即時渲染, wysiwyg:所見即所得
+    mode: 'wysiwyg', //sv: 分割預覽(雙欄位), ir:即時渲染, wysiwyg:所見即所得
     // debugger: true,
     // height: 500,
     // placeholder: '請輸入Markdown格式文字',
@@ -237,8 +237,8 @@ let def_settings = {
  *
  * @vue-prop {String} [value=''] 輸入markdown字串，為編輯器內容之唯一來源(settings.value與settings.cache之內容於初始化完成時皆被value取代)，可使用v-model雙向綁定，亦可只給value並於input事件內回寫或不回寫，null與undefined視為''，其他非字串會轉為字串，預設為''。編輯器初始化完成時載入當下之value(含初始化期間父層才給予之資料)並作為復原起點；之後value變更時，若等於組件最後回拋之值或編輯器當前內容則為回寫而不重載(比對時忽略結尾空白與換行符\r\n、\n之差異，開頭空白之增減屬內容變更)，否則以value為準載入：使用者尚未編輯時變更後之內容即成為新的復原起點，已有編輯則保留復原歷史；載入時若編輯區持有焦點，游標不保留。換載另一份文件或需捨棄編輯時，請以key重建組件
  * @vue-prop {Number} [height=400] 輸入編輯器高度數字，單位為px，預設為400
- * @vue-prop {Object} [settings={}] 輸入vditor設定物件，會覆蓋組件內建預設值，內建預設值詳見原始碼處def_settings，各設定項詳見vditor官方文件。settings、height、keyHint、hintTimeDetect皆於建立編輯器時採用，之後變更不生效，需變更時請以key重建組件。其中settings.input由組件接管；settings.after會於編輯器初始化完成且已載入value後呼叫一次，組件於初始化完成前即銷毀時則不呼叫；settings.cache.enable為true時須同時給予settings.cache.id。lute或語系檔無法載入、settings.lang或settings.mode不合法、settings.cache缺id、或初始化完成時處理失敗時，組件會停留於載入圖示
- * @vue-prop {String} [settings.mode='wysiwyg'] 輸入編輯模式字串，可選'sv'(雙欄位)、'ir'(即時渲染)、'wysiwyg'(所見即所得)，預設為'wysiwyg'
+ * @vue-prop {Object} [settings={}] 輸入vditor設定物件，會覆蓋組件內建預設值，內建預設值詳見原始碼處def_settings，各設定項詳見vditor官方文件。settings、height、keyHint、hintTimeDetect皆於建立編輯器時採用，之後變更不生效，需變更時請以key重建組件。其中settings.input由組件接管；settings.after會於編輯器初始化完成且已載入value後呼叫一次，組件於初始化完成前即銷毀時則不呼叫；settings.cache.enable為true時須同時給予settings.cache.id。lute或語系檔無法載入、settings.lang或settings.mode不合法、settings.cache缺id、或初始化完成時處理失敗時，組件會停留於載入圖示。settings.unSelect於分割預覽模式(sv)不會被呼叫(vditor 4起其編輯區為textarea，取消選取不觸發select事件，可編輯與唯讀皆然)，所見即所得與即時渲染不受影響
+ * @vue-prop {String} [settings.mode='wysiwyg'] 輸入編輯模式字串，可選'sv'(分割預覽，編輯區為原始碼textarea，右側為預覽區)、'ir'(即時渲染)、'wysiwyg'(所見即所得)，預設為'wysiwyg'
  * @vue-prop {String} [settings.lang='zh_TW'] 輸入語系字串，可選'zh_CN'、'zh_TW'、'en_US'、'ja_JP'、'ko_KR'、'ru_RU'、'sv_SE'、'fr_FR'、'pt_BR'，預設為'zh_TW'
  * @vue-prop {String} [settings.theme='classic'] 輸入編輯器主題字串，可選'classic'、'dark'，預設為'classic'
  * @vue-prop {String} [settings.cdn='https://unpkg.com/vditor@[版本]'] 輸入vditor執行期動態載入資源(lute、i18n、icons、katex等)之來源位置字串，該位置之下需有dist資料夾，預設為vditor內建之unpkg位置
@@ -246,8 +246,8 @@ let def_settings = {
  * @vue-prop {String} [settings.icon='ant'] 輸入工具列圖示組字串，可選'ant'、'material'，圖示檔由settings.cdn下載，預設為'ant'
  * @vue-prop {Array} [settings.toolbar=['詳見原始碼']] 輸入工具列項目陣列，預設詳見原始碼處def_settings->toolbar
  * @vue-prop {String} [settings.placeholder=''] 輸入編輯器無內容時顯示之提示字串，預設為''
- * @vue-prop {String|Array} [keyHint=''] 輸入打字時調用提示區之完整觸發字串或其陣列，例如給予'/ht'則輸入「/ht」即顯示提示區，亦可給予'@'、'/ht'等任意字串，或給予['/ht','/kw']陣列註冊多組，給予''則不啟用提示區，預設為''。觸發字串須位於行首或其前方為空白字元方會生效，且點選提示項目後會移除游標前本次輸入之觸發字串再插入(游標已移離觸發字串時則只插入)
- * @vue-prop {Number} [hintTimeDetect=100] 輸入偵測提示區之debounce時間數字，單位為ms，預設100。因vditor之編輯回調options.input為debounce機制，打字時每次按鍵皆重新計時，停止打字後才觸發，而提示區偵測與value回拋皆由該回調驅動，故此值即為打完keyHint後至提示區出現之延遲，亦為v-model同步之延遲；vditor原生預設為800ms，另因其同時決定undo還原點之合併粒度，給予過小值會使undo變得瑣碎。sv模式之options.input為每次輸入即同步觸發，提示區偵測與v-model同步不受此值影響
+ * @vue-prop {String|Array} [keyHint=''] 輸入打字時調用提示區之完整觸發字串或其陣列，例如給予'/ht'則輸入「/ht」即顯示提示區，亦可給予'@'、'/ht'等任意字串，或給予['/ht','/kw']陣列註冊多組，給予''則不啟用提示區，預設為''。觸發字串須位於行首或其前方為空白字元方會生效，且點選提示項目後會移除游標前本次輸入之觸發字串再插入(游標已移離觸發字串時則只插入)。分割預覽模式(sv)不支援提示區(vditor 4起於分割預覽停用提示，編輯區為textarea而無游標位置可定位)，該模式下輸入觸發字串只是一般文字，不顯示提示區
+ * @vue-prop {Number} [hintTimeDetect=100] 輸入偵測提示區之debounce時間數字，單位為ms，預設100。因vditor之編輯回調options.input為debounce機制，打字時每次按鍵皆重新計時，停止打字後才觸發，而提示區偵測與value回拋皆由該回調驅動，故此值即為打完keyHint後至提示區出現之延遲，亦為v-model同步之延遲；vditor原生預設為800ms，另因其同時決定undo還原點之合併粒度，給予過小值會使undo變得瑣碎。sv模式之options.input為每次輸入即同步觸發，v-model同步不受此值影響(sv模式不支援提示區，見keyHint)
  * @vue-prop {String} [hintBackgroundColor='#fff'] 輸入提示窗背景顏色字串，預設'#fff'
  * @vue-prop {Boolean} [hintShadow=true] 輸入提示窗是否顯示陰影布林值，預設true
  * @vue-prop {String} [hintShadowStyle='0 5px 5px -3px rgba(0,0,0,.2), 0 8px 10px 1px rgba(0,0,0,.14), 0 3px 14px 2px rgba(0,0,0,.12)'] 輸入提示窗陰影樣式字串，預設'0 5px 5px -3px rgba(0,0,0,.2), 0 8px 10px 1px rgba(0,0,0,.14), 0 3px 14px 2px rgba(0,0,0,.12)'
@@ -813,11 +813,13 @@ export default {
             if (vo.editable) {
                 vo.unwatchLock()
                 vo.contentEditor.enable()
+                vo.unlockSvEditor()
                 return
             }
 
             //disabled
             vo.contentEditor.disabled()
+            vo.lockSvEditor()
 
             //blurEditor, 焦點位於編輯區內時使其失焦, 鎖定後之鍵盤操作回到頁面; 此時唯讀尚未套用, vditor照常保存選取範圍並呼叫settings.blur
             vo.blurEditor()
@@ -833,7 +835,7 @@ export default {
             //watchLock, 唯讀期間維持唯讀, 建立後即為唯讀已套用
             vo.watchLock()
 
-            //blurEditor, vditor之失焦處理於選取不在編輯區內且無保存範圍時會拉回焦點(vditor/src/ts/util/selection.ts:17), 唯讀已套用後再確認一次(此時失焦已不交vditor處理)
+            //blurEditor, vditor之失焦處理於選取不在編輯區內且無保存範圍時會拉回焦點(vditor/src/ts/util/selection.ts:22, 所見即所得與即時渲染), 唯讀已套用後再確認一次(此時失焦已不交vditor處理)
             vo.blurEditor()
 
         },
@@ -880,8 +882,8 @@ export default {
             //唯讀期間攔截vditor之處理(由fLockGuard於組件根capture階段呼叫), vditor之點擊、按鍵、焦點與輸入處理皆不檢查唯讀:
             //點擊核取方塊會勾選並回拋(vditor/src/ts/wysiwyg/index.ts:412-423、ir/index.ts:140-147), 點擊圖片會開啟可編輯之圖片彈窗(wysiwyg/index.ts:427-433),
             //點擊內容下方空白處會新增空段落(wysiwyg/index.ts:450-463、ir/index.ts:191-204, 解鎖後之輸入會落入該段);
-            //焦點位於編輯區內時按鍵處理與快捷鍵會改動內容並回拋(util/editorCommonEvent.ts:116-230), 其內之表單控制項(程式碼複製鈕之textarea、HTML區塊之input)之輸入會經vditor回拋(wysiwyg/index.ts:332、ir/index.ts:119);
-            //編輯區失焦時經getEditorRange拉回焦點(util/editorCommonEvent.ts:41-57、util/selection.ts:17), 使Tab鍵、頁面程式聚焦或點擊他處無法移走焦點;
+            //焦點位於編輯區內時按鍵處理與快捷鍵會改動內容並回拋(util/editorCommonEvent.ts:124-243), 其內之表單控制項(程式碼複製鈕之textarea、HTML區塊之input)之輸入會經vditor回拋(wysiwyg/index.ts:332、ir/index.ts:119);
+            //編輯區失焦時經getEditorRange拉回焦點(util/editorCommonEvent.ts:41-59、util/selection.ts:22, 所見即所得與即時渲染), 使Tab鍵、頁面程式聚焦或點擊他處無法移走焦點;
             //停用中之標題鈕先清除渲染計時器才檢查停用(toolbar/Headings.ts:35-38), 會使鎖定前最後輸入不再回拋
             //點擊與按鍵類事件以prop判斷(父層一鎖定即防護), 焦點與輸入類事件以唯讀已套用判斷(鎖定時之失焦與組字提交仍交vditor)
 
@@ -936,6 +938,16 @@ export default {
                 return
             }
 
+            //paste, 分割預覽(vditor 4起之編輯區為textarea)之貼上以setRangeText寫入, 不受readonly屬性限制(vditor/src/ts/sv/index.ts:33-39、sv/process.ts:4-12),
+            //唯讀期間編輯區本身持有焦點時(Tab鍵取得)之貼上不交由vditor處理; 所見即所得與即時渲染之編輯區為contenteditable=false, 貼上不生效, 一併不處理; 編輯區內表單控制項之貼上照常(同下段)
+            if (type === 'paste') {
+                if (locked && t === ele) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                }
+                return
+            }
+
             //input、compositionstart、compositionend、drop, 編輯區內表單控制項之輸入不交由vditor處理, 控制項本身照常(不屬markdown內容)
             if (type === 'input' || type === 'compositionstart' || type === 'compositionend' || type === 'drop') {
                 if (applied) {
@@ -959,7 +971,7 @@ export default {
                     let opt = get(vo, ['contentEditor', 'vditor', 'options'], null)
                     let f = get(opt, type, null)
                     if (isfun(f)) {
-                        f.call(opt, vo.contentEditor.getValue()) //依vditor原呼叫方式(vditor/src/ts/util/editorCommonEvent.ts:23、:54)以合併後之設定為接收者
+                        f.call(opt, vo.contentEditor.getValue()) //依vditor原呼叫方式(vditor/src/ts/util/editorCommonEvent.ts:22、:56, 分割預覽之失焦為sv/index.ts:27-31)以合併後之設定為接收者
                     }
                 }
 
@@ -1017,8 +1029,8 @@ export default {
         },
 
         enforceLock: function() {
-            //唯讀期間維持唯讀: vditor於延後寫入復原堆疊時一律啟用復原鈕(vditor/src/ts/undo/index.ts:130-132),
-            //切換編輯模式時啟用編輯類工具列與新模式之編輯區(vditor/src/ts/toolbar/EditMode.ts:44), 皆於此改回唯讀
+            //唯讀期間維持唯讀: vditor於延後寫入復原堆疊時一律啟用復原鈕(vditor/src/ts/undo/index.ts:132-134),
+            //切換編輯模式時啟用編輯類工具列與新模式之編輯區(vditor/src/ts/toolbar/EditMode.ts:43), 皆於此改回唯讀
 
             let vo = this
 
@@ -1027,9 +1039,12 @@ export default {
                 return
             }
 
-            //editableEle, 當前模式之編輯區是否可編輯
+            //editableEle, 當前模式之編輯區是否可編輯: 所見即所得與即時渲染為contenteditable屬性, 分割預覽(textarea)為唯讀狀態之偏離(isSvLocked)
             let ele = vo.getEditorElement()
-            let editableEle = isEle(ele) && ele.getAttribute('contenteditable') !== 'false'
+            let editableEle = false
+            if (isEle(ele)) {
+                editableEle = vo.isSvEditor(ele) ? !vo.isSvLocked(ele) : ele.getAttribute('contenteditable') !== 'false'
+            }
 
             //enabledBtn, 鎖定當下已停用之工具列項目是否被重新啟用
             let enabledBtn = vo.lockTypes.some((t) => {
@@ -1040,6 +1055,51 @@ export default {
             //disabled, 已全部停用時不呼叫, 避免其屬性寫入再觸發監看
             if (editableEle || enabledBtn) {
                 vo.contentEditor.disabled()
+                vo.lockSvEditor()
+            }
+
+        },
+
+        isSvEditor: function(ele) {
+            //ele是否為分割預覽之編輯區: vditor 4起為textarea(vditor/src/ts/sv/index.ts:13), 所見即所得與即時渲染為contenteditable之元素
+            return isEle(ele) && ele.tagName === 'TEXTAREA'
+        },
+
+        isSvLocked: function(ele) {
+            //分割預覽之編輯區是否為唯讀狀態: readOnly且未停用(見lockSvEditor)
+            return ele.readOnly === true && ele.disabled === false
+        },
+
+        lockSvEditor: function() {
+            //分割預覽(vditor 4起之編輯區為textarea)之唯讀: vditor之disabled()改設disabled屬性(vditor/src/index.ts:163-174), 停用之textarea無法以Tab鍵取得焦點、無法選取文字,
+            //而組件承諾唯讀同原生readonly(可Tab聚焦、捲動、選取, 見JSDoc editable), 故於vditor停用後改設readOnly並解除disabled(textarea之readonly不接受鍵盤與輸入法輸入;
+            //貼上以setRangeText寫入不受限制, 由guardLock攔截paste)。所見即所得與即時渲染以contenteditable=false停用, 不須處理
+
+            let vo = this
+
+            let ele = vo.getEditorElement()
+            if (!vo.isSvEditor(ele)) {
+                return
+            }
+
+            //僅於狀態不符時寫入, 避免無謂之屬性寫入再觸發監看
+            if (ele.readOnly !== true) {
+                ele.readOnly = true
+            }
+            if (ele.disabled !== false) {
+                ele.disabled = false
+            }
+
+        },
+
+        unlockSvEditor: function() {
+            //解除唯讀時還原分割預覽編輯區之readOnly(disabled已由vditor之enable()解除, vditor/src/index.ts:177-188)
+
+            let vo = this
+
+            let ele = vo.getEditorElement()
+            if (vo.isSvEditor(ele) && ele.readOnly !== false) {
+                ele.readOnly = false
             }
 
         },
@@ -1190,6 +1250,12 @@ export default {
                 return
             }
 
+            //check, 分割預覽不支援提示區: vditor 4起於分割預覽停用提示(vditor/src/ts/hint/index.ts:26-29之render直接隱藏提示元素並返回、:133-137之fillEmoji不處理, 編輯區為textarea而無游標位置可定位),
+            //提示錨點恆為隱藏, 輪詢與插入皆無意義, 故不偵測(輸入照常回拋)
+            if (vo.contentEditor.getCurrentMode() === 'sv') {
+                return
+            }
+
             //findAnchor
             vo.findAnchor()
                 .then((divTrigger) => {
@@ -1266,7 +1332,7 @@ export default {
         },
 
         getHintRange: function() {
-            //取得提示區之插入位置: 提示區開啟時編輯區已失焦, 文件選取範圍仍位於編輯區內時取之, 否則取vditor於失焦時保存之範圍(vditor/src/ts/util/editorCommonEvent.ts:52)
+            //取得提示區之插入位置: 提示區開啟時編輯區已失焦, 文件選取範圍仍位於編輯區內時取之, 否則取vditor於失焦時保存之範圍(vditor/src/ts/util/editorCommonEvent.ts:48、:53)
 
             let vo = this
 
@@ -1286,7 +1352,7 @@ export default {
         },
 
         removeHintTrigger: function(range) {
-            //移除插入位置前本次輸入之觸發字串(同vditor自身提示之作法, vditor/src/ts/hint/index.ts:171-172), 回傳移除後之插入位置;
+            //移除插入位置前本次輸入之觸發字串(同vditor自身提示之作法, vditor/src/ts/hint/index.ts:178-179), 回傳移除後之插入位置;
             //只檢查游標前緊鄰之文字, 不以全文搜尋, 避免誤刪他處之相同字串(例如觸發字串為@而後文含email); 游標已移離觸發字串時回傳原位置而只插入
 
             let vo = this
@@ -1318,7 +1384,7 @@ export default {
         },
 
         insertValue: function(v, from) {
-            //由提示區插入v, v以HTML片段插入(vditor/src/index.ts:278-280)
+            //由提示區插入v, v以HTML片段插入(vditor/src/index.ts:310-316, 所見即所得與即時渲染)
 
             let vo = this
 

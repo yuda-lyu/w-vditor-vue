@@ -180,10 +180,12 @@
             }
             if (q.get('after') === '1') {
                 settings.after = function() {
-                    let ed = document.querySelector('.WVditorFix .vditor-reset[contenteditable]')
+                    //分割預覽(vditor 4起)之編輯區為textarea: 文字取value, 可編輯狀態取disabled與readonly屬性(轉為與contenteditable相同之'true'、'false')
+                    let ed = document.querySelector('.WVditorFix .vditor-reset[contenteditable], .WVditorFix textarea.vditor-sv')
+                    let isTa = !!ed && ed.tagName === 'TEXTAREA'
                     window.__after.push({
-                        text: ed ? ed.innerText.trim() : null,
-                        editable: ed ? ed.getAttribute('contenteditable') : null,
+                        text: ed ? (isTa ? ed.value : ed.innerText).trim() : null,
+                        editable: ed ? (isTa ? String(!ed.disabled && !ed.readOnly) : ed.getAttribute('contenteditable')) : null,
                         receiverHasMode: !!(this && this.mode),
                     })
                 }

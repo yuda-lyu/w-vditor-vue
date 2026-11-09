@@ -126,13 +126,31 @@ function resolveUnder(root, rel) {
 }
 
 
+//getVditorDir, 環境變數E2E_VDITOR_DIR有給時回傳該vditor套件資料夾(含dist)之絕對路徑, 否則回傳null; 供紅燈驗證以舊版vditor之資源(lute、語系、圖示)供應/node_modules/vditor/
+//(變異副本之WVditorVue.vue須同時改為引用同一舊版之dist/index.js與index.css, 見sgud/rule/rulebook.md R-02)
+function getVditorDir() {
+    if (!process.env.E2E_VDITOR_DIR) {
+        return null
+    }
+    let fd = path.resolve(process.env.E2E_VDITOR_DIR)
+    if (!fs.existsSync(path.join(fd, 'dist', 'index.js'))) {
+        throw new Error(`E2E_VDITOR_DIR找不到${path.join(fd, 'dist', 'index.js')}`)
+    }
+    return fd
+}
+
+
 //createStaticHandler, 本機靜態站之請求處理: /host/為宿主頁, /bundle/為本流程編譯之元件, /node_modules/為vue與vditor資源, 其餘404; 與埠無關(URL解析之base僅供解析)
 function createStaticHandler(fdDist) {
+    let fdVditor = getVditorDir()
     let roots = [
         ['/host/', fdHost],
         ['/bundle/', fdDist],
-        ['/node_modules/', path.join(projRoot, 'node_modules')],
     ]
+    if (fdVditor) {
+        roots.push(['/node_modules/vditor/', fdVditor])
+    }
+    roots.push(['/node_modules/', path.join(projRoot, 'node_modules')])
     return (req, res) => {
         let pathname
         try {
@@ -325,7 +343,7 @@ async function waitReady(page, timeout = 15000) {
         }
         return fixes.every((fix) => {
             let loading = (fix.getAttribute('style') || '').includes('max-height')
-            let ed = [...fix.querySelectorAll('.vditor-reset[contenteditable]')].find((e) => e.offsetParent !== null)
+            let ed = [...fix.querySelectorAll('.vditor-reset[contenteditable], textarea.vditor-sv')].find((e) => e.offsetParent !== null)
             return !loading && !!ed
         })
     }, { timeout })
@@ -380,8 +398,10 @@ async function waitEditable(page, editable, opt = {}) {
     let { timeout = 5000, i = 0 } = opt
     await waitUntilExist(page, `編輯區${editable ? '可編輯' : '不可編輯'}`, ([e, idx]) => {
         let fix = document.querySelectorAll('.WVditorFix')[idx]
-        let ed = fix ? [...fix.querySelectorAll('.vditor-reset[contenteditable]')].find((x) => x.offsetParent !== null) : null
-        return !!ed && ed.getAttribute('contenteditable') === (e ? 'true' : 'false')
+        let ed = fix ? [...fix.querySelectorAll('.vditor-reset[contenteditable], textarea.vditor-sv')].find((x) => x.offsetParent !== null) : null
+        //可編輯狀態: 所見即所得與即時渲染為contenteditable屬性, 分割預覽(vditor 4起為textarea)為disabled與readonly屬性(唯讀時組件設readonly, 見spec/設計要點與取捨.md ADR-009)
+        let cur = ed ? (ed.tagName === 'TEXTAREA' ? String(!ed.disabled && !ed.readOnly) : ed.getAttribute('contenteditable')) : null
+        return cur === (e ? 'true' : 'false')
     }, { timeout, arg: [editable, i] })
 }
 
@@ -389,7 +409,7 @@ async function waitEditable(page, editable, opt = {}) {
 //waitFocusLeft, 等焦點離開第一個編輯器之可見編輯區
 async function waitFocusLeft(page, timeout = 3000) {
     await waitUntilExist(page, '焦點離開編輯區', () => {
-        let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable]')].find((e) => e.offsetParent !== null)
+        let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable], .WVditorFix textarea.vditor-sv')].find((e) => e.offsetParent !== null)
         return !ed || !ed.contains(document.activeElement)
     }, { timeout })
 }
@@ -399,14 +419,16 @@ async function waitFocusLeft(page, timeout = 3000) {
 async function states(page) {
     return page.evaluate(() => {
         return [...document.querySelectorAll('.WVditorFix')].map((fix) => {
-            let ed = [...fix.querySelectorAll('.vditor-reset[contenteditable]')].find((e) => e.offsetParent !== null) || null
+            let ed = [...fix.querySelectorAll('.vditor-reset[contenteditable], textarea.vditor-sv')].find((e) => e.offsetParent !== null) || null
             let undo = fix.querySelector('.vditor-toolbar button[data-type="undo"]')
             let bold = fix.querySelector('.vditor-toolbar button[data-type="bold"]')
+            //分割預覽(vditor 4起)之編輯區為textarea: 文字取value, 可編輯狀態取disabled與readonly屬性(轉為與contenteditable相同之'true'、'false')
+            let isTa = !!ed && ed.tagName === 'TEXTAREA'
             return {
-                text: ed ? ed.innerText.trim().replace(/\s+/g, ' ') : null,
+                text: ed ? (isTa ? ed.value : ed.innerText).trim().replace(/\s+/g, ' ') : null,
                 undoDisabled: undo ? undo.classList.contains('vditor-menu--disabled') : null,
                 boldDisabled: bold ? bold.classList.contains('vditor-menu--disabled') : null,
-                editable: ed ? ed.getAttribute('contenteditable') : null,
+                editable: ed ? (isTa ? String(!ed.disabled && !ed.readOnly) : ed.getAttribute('contenteditable')) : null,
             }
         })
     })
@@ -441,7 +463,7 @@ async function exportMenuItems(page) {
 //editorScrollTop, 第一個編輯器可見編輯區之捲動位置(觀察用)
 async function editorScrollTop(page) {
     return page.evaluate(() => {
-        let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable]')].find((e) => e.offsetParent !== null)
+        let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable], .WVditorFix textarea.vditor-sv')].find((e) => e.offsetParent !== null)
         return ed ? ed.scrollTop : null
     })
 }
@@ -451,8 +473,8 @@ async function editorScrollTop(page) {
 async function rawText(page, i = 0) {
     return page.evaluate((idx) => {
         let fix = document.querySelectorAll('.WVditorFix')[idx]
-        let ed = fix ? [...fix.querySelectorAll('.vditor-reset[contenteditable]')].find((e) => e.offsetParent !== null) : null
-        return ed ? ed.innerText : null
+        let ed = fix ? [...fix.querySelectorAll('.vditor-reset[contenteditable], textarea.vditor-sv')].find((e) => e.offsetParent !== null) : null
+        return ed ? (ed.tagName === 'TEXTAREA' ? ed.value : ed.innerText) : null
     }, i)
 }
 
@@ -509,7 +531,7 @@ async function waitAsset(assets, key, count = 1, timeout = 15000) {
 
 //editor, 第i個編輯器之可見編輯區
 function editor(page, i = 0) {
-    return page.locator('.WVditorFix').nth(i).locator('.vditor-reset[contenteditable]:visible').first()
+    return page.locator('.WVditorFix').nth(i).locator('.vditor-reset[contenteditable]:visible, textarea.vditor-sv:visible').first()
 }
 
 
@@ -582,6 +604,30 @@ async function waitHintState(page, state, opt = {}) {
 }
 
 
+//previewMedia, 觀察第i個編輯器預覽區(分割預覽之右側)內之播放器與頁面全域旗標(觀察用, 不改動頁面狀態):
+//media為各video、audio之標籤名、屬性名稱(排序)、src屬性值、controls屬性是否存在、載入是否已失敗(error非空); links為預覽區內超連結數; xss為頁面全域旗標window.__xss(供含腳本指令之內容寫入, 未被執行時為undefined)
+async function previewMedia(page, i = 0) {
+    return page.evaluate((idx) => {
+        let fix = document.querySelectorAll('.WVditorFix')[idx]
+        let pv = fix ? fix.querySelector('.vditor-preview') : null
+        let media = pv ? [...pv.querySelectorAll('video, audio')] : []
+        return {
+            xss: window.__xss,
+            links: pv ? pv.querySelectorAll('a').length : null,
+            media: media.map((m) => {
+                return {
+                    tag: m.tagName.toLowerCase(),
+                    attrs: m.getAttributeNames().sort(),
+                    src: m.getAttribute('src'),
+                    controls: m.hasAttribute('controls'),
+                    failed: m.error !== null,
+                }
+            }),
+        }
+    }, i)
+}
+
+
 //clickEnd, 點擊編輯區並以Ctrl+End將游標移至文件末
 async function clickEnd(page, i = 0) {
     await editor(page, i).click()
@@ -626,11 +672,11 @@ async function waitText(page, label, cond, opt = {}) {
     let { timeout = 10000, i = 0 } = opt
     await waitUntilExist(page, label, ([c, idx]) => {
         let fix = document.querySelectorAll('.WVditorFix')[idx]
-        let ed = fix ? [...fix.querySelectorAll('.vditor-reset[contenteditable]')].find((e) => e.offsetParent !== null) : null
+        let ed = fix ? [...fix.querySelectorAll('.vditor-reset[contenteditable], textarea.vditor-sv')].find((e) => e.offsetParent !== null) : null
         if (!ed) {
             return false
         }
-        let t = ed.innerText.trim().replace(/\s+/g, ' ')
+        let t = (ed.tagName === 'TEXTAREA' ? ed.value : ed.innerText).trim().replace(/\s+/g, ' ')
         if ('equals' in c && t !== c.equals) {
             return false
         }
@@ -684,7 +730,7 @@ async function waitStatus(page, status, timeout = 10000) {
 //focusInEditor, 焦點是否位於第一個編輯器之可見編輯區內(含編輯區本身)
 async function focusInEditor(page) {
     return page.evaluate(() => {
-        let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable]')].find((e) => e.offsetParent !== null)
+        let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable], .WVditorFix textarea.vditor-sv')].find((e) => e.offsetParent !== null)
         return !!ed && ed.contains(document.activeElement)
     })
 }
@@ -693,7 +739,7 @@ async function focusInEditor(page) {
 //focusOnEditorItself, 焦點是否位於第一個編輯器之可見編輯區本身
 async function focusOnEditorItself(page) {
     return page.evaluate(() => {
-        let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable]')].find((e) => e.offsetParent !== null)
+        let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable], .WVditorFix textarea.vditor-sv')].find((e) => e.offsetParent !== null)
         return !!ed && document.activeElement === ed
     })
 }
@@ -730,9 +776,9 @@ async function startSampler(page, i = 0) {
         window.__samples = []
         window.__samplerTimer = setInterval(() => {
             let fix = document.querySelectorAll('.WVditorFix')[idx]
-            let ed = fix ? [...fix.querySelectorAll('.vditor-reset[contenteditable]')].find((e) => e.offsetParent !== null) : null
+            let ed = fix ? [...fix.querySelectorAll('.vditor-reset[contenteditable], textarea.vditor-sv')].find((e) => e.offsetParent !== null) : null
             if (ed) {
-                window.__samples.push(ed.innerText.trim().replace(/\s+/g, ' '))
+                window.__samples.push((ed.tagName === 'TEXTAREA' ? ed.value : ed.innerText).trim().replace(/\s+/g, ' '))
             }
         }, 20)
     }, i)
@@ -823,6 +869,7 @@ export {
     startHintStateRecorder,
     stopHintStateRecorder,
     waitHintState,
+    previewMedia,
     clickEnd,
     typeAtEnd,
     waitInputs,

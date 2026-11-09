@@ -2,6 +2,10 @@
 
 本檔為執行工作時特有之累積經驗,留給後續之嘗試、執行與判斷,由agent自行編列、擴充與維護.過長時抽出舊者為`experience_<年月日>.md`,並於本檔註明何時抽出.
 
+## 2026-11-09 vditor 3.11.3 升 4.0.1（任務 vd01；規則見 `sgud/rule/rulebook.md` R-02、R-03）
+
+- **跨主版號升 vditor 時，先只升版不改碼跑全套，再把「找不到元素」與「行為變了」分開**：4.0.1 之分割預覽編輯區由 contenteditable 改為 textarea，36 案分割預覽輪全因測試輔助之 `.vditor-reset[contenteditable]` 找不到而逾時（非產品壞）；輔助改為同時認 textarea 後才露出 10 案真差異（停用之 textarea 不能聚焦、選取，唯讀須以 `readOnly` 實現並在 `guardLock` 攔 paste，因 `setRangeText` 不受 readonly 限制；4.0 起分割預覽無提示區、不通知 `unSelect`，皆為上游行為，探測確認後依封裝權責不補發）。XSS 案例須先探測有效載荷（超連結夾帶 `onerror` 有效，Markdown 連結語法被淨化為 `%22` 無效），並以變異副本（`import` 改指 3.11.3 之 `dist` 加 `E2E_VDITOR_DIR` 供應同版 lute）證明修前紅；等載入失敗以 `video.error !== null` 為同步點。細節見 `spec/evidence/2026-11-09-vd01-upgrade-4.0.1.md`。
+
 ## 2026-11-05 e2e 靜態站自動換埠（排程第 309 項，任務 vd309；規則見 `sgud/rule/rulebook.md` R-E2E-PORT-01）
 
 - **Windows 下 `listen(port,'127.0.0.1')` 遇占用者綁 `0.0.0.0`／`::`（雙棧預設）／`::1` 不報 `EADDRINUSE`，而是並存，且新連線由更具體的 `127.0.0.1` 者（我們）接走。** 只有占用者也綁 `127.0.0.1` 才報。所以盤點寫的「被占用即拋錯，不誤打」只對一種占用者成立；其餘情形是「測試全綠，同時搶走對方 127.0.0.1 之新連線」（修前實測：`::` 占用時 `e2e-load` 35 passing，驅動每 300 ms 對該埠發新連線，319 次被我們的 404 接走）。偵測空閒用實際綁定（`reserveE2ePorts` 內建，四種位址皆試），綁定前再以連線檢查（`isPortAnswering`，對 `127.0.0.1`、`::1` 發新連線）補「預約後被搶走」之窗口。

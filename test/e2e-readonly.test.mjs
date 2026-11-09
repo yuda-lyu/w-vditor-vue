@@ -5,7 +5,7 @@ import assert from 'assert'
 import {
     MODES, MODE_NAMES, DOCS, visText, launchBrowser, createFlow,
     waitReady, waitUndo, waitEditable, waitText, waitInputs, waitMdoutSynced, waitStatus, states, sampleStates, hostInfo,
-    editor, toolbarButton, hostButton, typeAtEnd, tabUntil, endsAfter
+    editor, toolbarButton, hostButton, typeAtEnd, tabUntil, endsAfter, focusOnEditorItself
 } from './tools/e2e-setup.mjs'
 import { waitUntilExist } from './tools/e2eLib.mjs'
 
@@ -301,6 +301,59 @@ describe('e2e-readonly：唯讀鎖定', function() {
             assert.strictEqual(info.inputs.length, 1) //②
             assert.ok(info.inputs[0].trimEnd().endsWith('Z'), JSON.stringify(info.inputs)) //②
             assert.deepStrictEqual(logs, []) //③
+        })
+
+    }
+
+    for (let mode of MODES) {
+
+        //E2E-013 唯讀時焦點在編輯區，貼上無效
+        //①起點: 示範宿主頁, 唯讀之LONG ②點擊: 「備忘」欄、搜尋框 ③看到: 焦點停在編輯區本身 ④輸入: Ctrl+A、Ctrl+C、Tab若干次、Ctrl+V ⑤之後: 內容不變 ⑥副作用: 無回傳
+        it(`E2E-013 [${MODE_NAMES[mode]}] 唯讀時焦點在編輯區，貼上無效`, async function() {
+            let { page, logs } = await flow.openReady(browser, { mode, doc: 'LONG', editable: '0' })
+            let [s0] = await states(page)
+            await page.getByRole('textbox', { name: '備忘' }).click()
+            await page.keyboard.press('Control+a')
+            await page.keyboard.press('Control+c')
+            assert.strictEqual(await tabUntil(page, focusOnEditorItself), true) //①前提(以Tab鍵取得之焦點在唯讀編輯區本身)
+            await page.keyboard.press('Control+v')
+            await page.waitForTimeout(800) //負向觀察窗: 貼上後內容不得改動、不得回傳(分割預覽之貼上以setRangeText寫入, 不受readonly限制, 由組件攔截)
+            let [s1] = await states(page)
+            let info = await hostInfo(page)
+            assert.strictEqual(s1.text, s0.text) //②
+            assert.ok(!s1.text.includes(DOCS.NOTE), s1.text) //②
+            assert.strictEqual(s1.undoDisabled, true) //③
+            assert.deepStrictEqual(info.inputs, []) //④
+            assert.strictEqual(info.mdout, DOCS.LONG) //⑤
+            assert.deepStrictEqual(logs, []) //⑥
+        })
+
+    }
+
+    for (let mode of MODES) {
+
+        //E2E-014 唯讀時拖放頁面文字至編輯區無效
+        //①起點: 示範宿主頁, 唯讀之ORI ②點擊: 頁面下方「頁面持有之內容」(雙擊選取一字後拖曳至編輯區) ③看到: 編輯區不變 ④輸入: 無 ⑤之後: 內容不變 ⑥副作用: 無回傳
+        it(`E2E-014 [${MODE_NAMES[mode]}] 唯讀時拖放頁面文字至編輯區無效`, async function() {
+            let { page, logs } = await flow.openReady(browser, { mode, editable: '0' })
+            let [s0] = await states(page)
+            let tb = await page.locator('#mdout').boundingBox()
+            await page.mouse.dblclick(tb.x + 30, tb.y + 12) //L2真滑鼠: 雙擊選取「頁面持有之內容」首行之一字
+            let sel = await page.evaluate(() => String(window.getSelection()))
+            assert.ok(sel.trim().length > 0, JSON.stringify(sel)) //①前提(頁面上有被選取之文字)
+            let eb = await editor(page).boundingBox()
+            await page.mouse.move(tb.x + 30, tb.y + 12) //L2真滑鼠: 按住選取之文字拖曳至編輯區後放開
+            await page.mouse.down()
+            await page.mouse.move(tb.x + 60, tb.y + 20, { steps: 4 })
+            await page.mouse.move(eb.x + 100, eb.y + 80, { steps: 12 })
+            await page.mouse.up()
+            await page.waitForTimeout(800) //負向觀察窗: 放開後內容不得改動、不得回傳(分割預覽可編輯時此拖放會插入內容, 唯讀時由組件攔截drop)
+            let [s1] = await states(page)
+            let info = await hostInfo(page)
+            assert.strictEqual(s1.text, s0.text) //②
+            assert.deepStrictEqual(info.inputs, []) //③
+            assert.strictEqual(info.mdout, DOCS.ORI) //④
+            assert.deepStrictEqual(logs, []) //⑤
         })
 
     }

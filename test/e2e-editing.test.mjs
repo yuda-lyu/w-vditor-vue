@@ -137,8 +137,8 @@ describe('e2e-editing：編輯與回傳', function() {
             await waitMdoutSynced(page)
             await waitUntilExist(page, '另一個編輯器顯示相同內容', () => {
                 let txt = [...document.querySelectorAll('.WVditorFix')].map((fix) => {
-                    let ed = [...fix.querySelectorAll('.vditor-reset[contenteditable]')].find((e) => e.offsetParent !== null)
-                    return ed ? ed.innerText.trim().replace(/\s+/g, ' ') : null
+                    let ed = [...fix.querySelectorAll('.vditor-reset[contenteditable], textarea.vditor-sv')].find((e) => e.offsetParent !== null)
+                    return ed ? (ed.tagName === 'TEXTAREA' ? ed.value : ed.innerText).trim().replace(/\s+/g, ' ') : null
                 })
                 return txt.length === 2 && txt[0] === txt[1]
             })

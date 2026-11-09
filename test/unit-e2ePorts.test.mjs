@@ -1,5 +1,5 @@
 //unit-e2ePorts: e2e靜態站自動換埠(規格 dspec/e2e埠與多套件同跑.md E1～E6、E8、§5)之單元測試, 一律使用真實行程與真實監聽
-//與環境無關: 基準埠一律動態取得空閒埠(freeBase, 保證P、P+100、P+200空閒), 期望值由其推得; 預約目錄與環境變數以opt.reserve隔離; 不碰真實流程埠(8136～8141), 故可與同一mocha --parallel中並行之e2e檔同跑;
+//與環境無關: 基準埠一律動態取得空閒埠(freeBase, 保證P、P+100、P+200空閒), 期望值由其推得; 預約目錄與環境變數以opt.reserve隔離; 不碰真實流程埠(8136～8142), 故可與同一mocha --parallel中並行之e2e檔同跑;
 //占用者占不到(EADDRINUSE)視為已被占用, 本機無該位址族(IPv6)之變體改驗「該位址族確實不存在」, 不用skip當常態
 import assert from 'assert'
 import fs from 'fs'

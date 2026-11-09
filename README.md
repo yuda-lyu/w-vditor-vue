@@ -63,4 +63,14 @@ Resources actually requested(verified by serving them locally with all external 
 | `dist/images/emoji/*` | only when image emojis are used | 112 KB |
 | `dist/js/{mermaid,echarts,graphviz,abcjs,markmap,flowchart.js,mathjax,...}` | only when the content has the matching code block | 0.03 ~ 6.5 MB each |
 
-The whole `dist` is about 24 MB, most of which belongs to renderers that are never fetched unless the corresponding syntax appears. It is safe to copy only the folders your content needs, plus `js/lute`, `js/i18n`, `js/icons` and `css/`.
+The whole `dist` is about 22 MB, most of which belongs to renderers that are never fetched unless the corresponding syntax appears. It is safe to copy only the folders your content needs, plus `js/lute`, `js/i18n`, `js/icons` and `css/`.
+
+Copy the `dist` of the same vditor version as the one bundled in the umd file (see `dependencies.vditor` in `package.json`); `js/lute/lute.min.js` differs between vditor versions and must match.
+
+## vditor 4 notes
+
+w-vditor-vue bundles vditor `^4.0.1` (3.x had a preview XSS fixed in 4.0.1: GHSA-x2mx-f527-mxr9). Behaviour changes that matter to users of the component:
+
+- `settings.mode='sv'` (split preview): the editing area is a plain `<textarea>` in vditor 4. Read-only (`editable=false`) still behaves like the native `readonly` (focusable by Tab, scrollable, selectable, not editable); the component sets `readOnly` on the textarea because vditor 4 uses `disabled`, which cannot be focused or selected.
+- `keyHint` (the hint area) is **not supported in `sv` mode**: vditor 4 disables hints there. Typing the trigger string is plain text and no hint area is shown. `wysiwyg` and `ir` modes are unchanged.
+- The `input` event is still emitted on every change; in `sv` mode it is emitted for every input without debounce, as before.

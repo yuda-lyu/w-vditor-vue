@@ -17,5 +17,9 @@
     "MAIL": "# 標題\n\n第一段內容\n\n聯絡a@b.com\n",
     "SVALUE": "# 設定內容\n\n由設定給予之內容\n",
     "CACHED": "# 快取內容\n\n快取保存之內容\n",
-    "NOTE": "PASTE"
+    "NOTE": "PASTE",
+    "XSS_LINK": "<a href='x\" onerror=\"window.__xss=1\" a=\".mp4'>影片連結</a>",
+    "XSS_VIDEO": "# 標題\n\n<a href='x\" onerror=\"window.__xss=1\" a=\".mp4'>影片連結</a>\n",
+    "XSS_AUDIO": "# 標題\n\n<a href='x\" onerror=\"window.__xss=1\" a=\".mp3'>音訊連結</a>\n",
+    "MEDIA_OK": "# 標題\n\n[影片連結](/media/a.mp4)\n\n[音訊連結](/media/a.mp3)\n"
 }

@@ -14,6 +14,7 @@ const FLOW_PORTS = {
     'readonly': 8139,
     'readonly-focus': 8140,
     'key-hint': 8141,
+    'preview': 8142,
 }
 
 

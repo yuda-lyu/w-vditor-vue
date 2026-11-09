@@ -1,0 +1,66 @@
+{
+  "old/htmlAnchorMp4": {
+    "xss": true,
+    "media": [
+      "<video controls=\"controls\" src=\"x\" onerror=\"window.__xss=1\" a=\".mp4\"></video>"
+    ],
+    "html": "<p><video controls=\"controls\" src=\"x\" onerror=\"window.__xss=1\" a=\".mp4\"></video></p>\n",
+    "errs": []
+  },
+  "old/mdLinkMp4": {
+    "xss": false,
+    "media": [
+      "<video controls=\"controls\" src=\"x%22onerror=%22window.__xss=1%22a.mp4\"></video>"
+    ],
+    "html": "<p><video controls=\"controls\" src=\"x%22onerror=%22window.__xss=1%22a.mp4\"></video></p>\n",
+    "errs": []
+  },
+  "old/htmlAnchorMp3": {
+    "xss": true,
+    "media": [
+      "<audio controls=\"controls\" src=\"x\" onerror=\"window.__xss=1\" a=\".mp3\"></audio>"
+    ],
+    "html": "<p><audio controls=\"controls\" src=\"x\" onerror=\"window.__xss=1\" a=\".mp3\"></audio></p>\n",
+    "errs": []
+  },
+  "old/benignMp4": {
+    "xss": false,
+    "media": [
+      "<video controls=\"controls\" src=\"/media/a.mp4\"></video>"
+    ],
+    "html": "<p><video controls=\"controls\" src=\"/media/a.mp4\"></video></p>\n",
+    "errs": []
+  },
+  "new/htmlAnchorMp4": {
+    "xss": false,
+    "media": [
+      "<video controls=\"controls\" src=\"x&quot; onerror=&quot;window.__xss=1&quot; a=&quot;.mp4\"></video>"
+    ],
+    "html": "<p><video controls=\"controls\" src=\"x&quot; onerror=&quot;window.__xss=1&quot; a=&quot;.mp4\"></video></p>\n",
+    "errs": []
+  },
+  "new/mdLinkMp4": {
+    "xss": false,
+    "media": [
+      "<video controls=\"controls\" src=\"x%22onerror=%22window.__xss=1%22a.mp4\"></video>"
+    ],
+    "html": "<p><video controls=\"controls\" src=\"x%22onerror=%22window.__xss=1%22a.mp4\"></video></p>\n",
+    "errs": []
+  },
+  "new/htmlAnchorMp3": {
+    "xss": false,
+    "media": [
+      "<audio controls=\"controls\" src=\"x&quot; onerror=&quot;window.__xss=1&quot; a=&quot;.mp3\"></audio>"
+    ],
+    "html": "<p><audio controls=\"controls\" src=\"x&quot; onerror=&quot;window.__xss=1&quot; a=&quot;.mp3\"></audio></p>\n",
+    "errs": []
+  },
+  "new/benignMp4": {
+    "xss": false,
+    "media": [
+      "<video controls=\"controls\" src=\"/media/a.mp4\"></video>"
+    ],
+    "html": "<p><video controls=\"controls\" src=\"/media/a.mp4\"></video></p>\n",
+    "errs": []
+  }
+}

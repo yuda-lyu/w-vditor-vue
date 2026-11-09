@@ -14,6 +14,10 @@ import {
 let flow = createFlow('key-hint')
 
 
+//MODES_HINT, 支援提示區之編輯模式(vditor 4起分割預覽停用提示: vditor/src/ts/hint/index.ts:26-29, 分割預覽之不顯示由E2E-009涵蓋)
+let MODES_HINT = MODES.filter((m) => m !== 'sv')
+
+
 describe('e2e-key-hint：提示區插入', function() {
 
     let browser = null
@@ -38,7 +42,7 @@ describe('e2e-key-hint：提示區插入', function() {
         }
     })
 
-    for (let mode of MODES) {
+    for (let mode of MODES_HINT) {
 
         //E2E-001 點選提示項目插入內容(以「/ht」為例)
         //①起點: 示範宿主頁, 觸發字串「/ht」 ②點擊: 編輯區、提示區之「插入XYZ」 ③看到: 提示區出現後插入XYZ ④輸入: 「 /ht」、QQ ⑤之後: QQ接於XYZ之後 ⑥副作用: 頁面只收到一次插入後之內容
@@ -71,22 +75,13 @@ describe('e2e-key-hint：提示區插入', function() {
 
     }
 
-    for (let mode of MODES) {
+    for (let mode of MODES_HINT) {
 
         //E2E-002 中段觸發時只移除本次觸發字串(以「@」為例)
         //①起點: 示範宿主頁, 文件MAIL, 觸發字串「@」 ②點擊: 「第一段內容」、提示區之「插入XYZ」 ③看到: 提示區出現 ④輸入: End、「 @」、QQ ⑤之後: 後文a@b.com不變 ⑥副作用: 頁面持有之內容與最後回傳一致
         it(`E2E-002 [${MODE_NAMES[mode]}] 中段觸發時只移除本次觸發字串（以「@」為例）`, async function() {
             let { page, logs } = await flow.openReady(browser, { mode, keyHint: '@', doc: 'MAIL' })
-            if (mode === 'sv') {
-                //分割預覽之編輯區為原始碼, 以鍵盤移至第3行(第一段內容)
-                await editor(page).click()
-                await page.keyboard.press('Control+Home')
-                await page.keyboard.press('ArrowDown')
-                await page.keyboard.press('ArrowDown')
-            }
-            else {
-                await editor(page).getByText('第一段內容', { exact: true }).click()
-            }
+            await editor(page).getByText('第一段內容', { exact: true }).click()
             await page.keyboard.press('End')
             await page.keyboard.type(' @', { delay: 150 })
             await waitInputs(page, '回傳含觸發字串', { lastMatches: '第一段內容\\s@' })
@@ -107,7 +102,7 @@ describe('e2e-key-hint：提示區插入', function() {
 
     }
 
-    for (let mode of MODES) {
+    for (let mode of MODES_HINT) {
 
         //E2E-003 提示區開啟中伺服器回傳新內容時提示區關閉
         //①起點: 示範宿主頁, 觸發字串「/ht」, 伺服器0.3秒後回傳SERVER ②點擊: 編輯區 ③看到: 提示區出現 ④輸入: 「 /ht」、Ctrl+S ⑤之後: 提示區關閉、顯示伺服器內容 ⑥副作用: 載入不回傳
@@ -131,7 +126,7 @@ describe('e2e-key-hint：提示區插入', function() {
 
     }
 
-    for (let mode of MODES) {
+    for (let mode of MODES_HINT) {
 
         //E2E-004 提示區開啟中儲存鎖定時提示區關閉
         //①起點: 示範宿主頁, 觸發字串「/ht」, 上傳期間唯讀3秒 ②點擊: 編輯區 ③看到: 提示區出現 ④輸入: 「 /ht」、Ctrl+S ⑤之後: 提示區關閉、內容不變 ⑥副作用: 無回傳
@@ -186,7 +181,7 @@ describe('e2e-key-hint：提示區插入', function() {
         assert.deepStrictEqual(logs, []) //③
     })
 
-    for (let mode of MODES) {
+    for (let mode of MODES_HINT) {
 
         //E2E-007 提示區開啟與關閉時狀態依序轉換(以「/ht」為例)
         //①起點: 示範宿主頁, 觸發字串「/ht」 ②點擊: 編輯區、提示區之「插入XYZ」 ③看到: 提示區外層state依序為opening、opened、hidden ④輸入: 「 /ht」 ⑤之後: 提示區關閉、已插入XYZ ⑥副作用: 無(插入與回傳同E2E-001)
@@ -232,6 +227,26 @@ describe('e2e-key-hint：提示區插入', function() {
         let seq = await stopHintStateRecorder(page)
         let p = await hintPopperInfo(page)
         let [s] = await states(page)
+        assert.strictEqual(await hintItem(page).isVisible(), false) //①
+        assert.strictEqual(p.state, 'hidden', JSON.stringify(p)) //②
+        assert.deepStrictEqual(seq, []) //②
+        assert.ok(s.text.endsWith('/ht'), s.text) //③
+        assert.deepStrictEqual(logs, []) //④
+    })
+
+    //E2E-009 分割預覽下輸入觸發字串不出現提示區
+    //①起點: 示範宿主頁, 分割預覽, 觸發字串「/ht」 ②點擊: 編輯區 ③看到: 提示區不出現、state維持hidden ④輸入: 「 /ht」 ⑤之後: 文字照常保留 ⑥副作用: 頁面收到含/ht之內容
+    it(`E2E-009 [${MODE_NAMES.sv}] 分割預覽下輸入觸發字串不出現提示區`, async function() {
+        let { page, logs } = await flow.openReady(browser, { mode: 'sv', keyHint: '/ht' })
+        let p0 = await hintPopperInfo(page)
+        await startHintStateRecorder(page)
+        await typeAtEnd(page, ' /ht')
+        await waitInputs(page, '回傳結尾為/ht', { lastEndsWith: '/ht' })
+        await page.waitForTimeout(1500) //負向觀察窗: 涵蓋提示偵測輪詢(50ms)與回傳, 提示區不得出現、state不得變動
+        let seq = await stopHintStateRecorder(page)
+        let p = await hintPopperInfo(page)
+        let [s] = await states(page)
+        assert.strictEqual(p0.state, 'hidden', JSON.stringify(p0)) //前提
         assert.strictEqual(await hintItem(page).isVisible(), false) //①
         assert.strictEqual(p.state, 'hidden', JSON.stringify(p)) //②
         assert.deepStrictEqual(seq, []) //②
