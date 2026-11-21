@@ -770,6 +770,19 @@ async function tabUntil(page, check, max = 80) {
 }
 
 
+//homeUntilTop, 焦點在編輯區本身時連按Ctrl+Home, 直到可見編輯區之捲動位置為0(最多max次), 回傳是否見到為0(捲動可能稍後才完成, 呼叫端須另以偵測等待確認);
+//分割預覽(textarea)之唯讀編輯區自文末起算時, Chromium 159之第一次Ctrl+Home只把插入點移到開頭而不捲動檢視, 第二次才捲到開頭(156一次即捲到), 故以條件連按, 不以固定次數
+async function homeUntilTop(page, max = 5) {
+    for (let k = 0; k < max; k++) {
+        await page.keyboard.press('Control+Home')
+        if ((await editorScrollTop(page)) === 0) {
+            return true
+        }
+    }
+    return false
+}
+
+
 //startSampler, 每20ms記錄第i個編輯器可見文字(空白正規化), 供檢查輸入過程有無重載或錯位(觀察用)
 async function startSampler(page, i = 0) {
     await page.evaluate((idx) => {
@@ -881,6 +894,7 @@ export {
     focusOnEditorItself,
     activeInfo,
     tabUntil,
+    homeUntilTop,
     startSampler,
     stopSampler,
     checkTypingSamples,

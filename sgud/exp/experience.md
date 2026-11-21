@@ -2,6 +2,15 @@
 
 本檔為執行工作時特有之累積經驗,留給後續之嘗試、執行與判斷,由agent自行編列、擴充與維護.過長時抽出舊者為`experience_<年月日>.md`,並於本檔註明何時抽出.
 
+## 2026-11-21 瀏覽器升至 Chromium 159 後分割預覽 PageDown 案紅（任務 vv585；規則見 `sgud/rule/rulebook.md` R-04）
+
+- **先分離變因再動手**：相依升版同時換了瀏覽器修訂（156 → 159）與旗標組（新增 `--lang=zh-TW`）。三格對照（原樣、去掉 `--lang`、暫換舊相依）即得：紅只隨瀏覽器二進位而變，語系不是變因。對照要跑「同一份測試全檔」，不只是單案，才看得出是否僅此一案。
+- **有「分割預覽才紅、其餘兩模式綠」之差別時，先在無組件之原生元素上重現**：本案以 60 行 `<textarea readonly>` 加程式設值，即重現 159 之 PageDown 行為改變（插入點移到開頭、檢視不捲）；原生同樣變動即可判為瀏覽器行為，不必讀組件。探測腳本留在 `spec/evidence/`（探測 `REV` 以 `executablePath` 指向舊 headless shell，不必換相依）。
+- **舊測試通過是巧合**：分割預覽之 textarea 以程式寫入內容，插入點在文末；Tab 聚焦即捲到近底（捲動位置 1232／最大 1244，底部內距 132px 使差 12px），原案 PageDown 靠這 12px 通過。斷言「某鍵使捲動位置增加」前，先量起點是否有可捲動量。
+- **Chromium 159 之唯讀 textarea，插入點與檢視不同步時，Ctrl+Home 第一次只移插入點、不捲動檢視，第二次才捲到開頭**（156 一次即到）；輔助以「連按直到捲動位置為 0」（`homeUntilTop`）而非固定次數。
+- **以 `npm i … --no-save` 暫換舊瀏覽器之陷阱**：`w-package-tools-e2e@1.0.45` 之相依要求 `w-playwright ^1.0.2`，npm 把 1.0.3 與 playwright-core 1.65.1 巢狀裝在 `node_modules/w-package-tools-e2e/node_modules/` 下，根層之 `w-playwright@1.0.1` 變成 extraneous 而不生效（仍啟動 159）。須移除該巢狀兩個目錄（先確認無目錄連結），並以 `launchBrowser()` 印 `browser.version()` 確認為 156 才算換成；還原用 `npm ci --min-release-age=0`（約 4 分鐘）並以 `npm ls` 核對。
+- 變異證明（M1 阻止 PageDown 預設行為、M2 分割預覽 `overflow:hidden`）見 R-04；M2 紅在「回到開頭」之前提而非 ②，因編輯區連 Ctrl+Home 都捲不動。
+
 ## 2026-11-09 vditor 3.11.3 升 4.0.1（任務 vd01；規則見 `sgud/rule/rulebook.md` R-02、R-03）
 
 - **跨主版號升 vditor 時，先只升版不改碼跑全套，再把「找不到元素」與「行為變了」分開**：4.0.1 之分割預覽編輯區由 contenteditable 改為 textarea，36 案分割預覽輪全因測試輔助之 `.vditor-reset[contenteditable]` 找不到而逾時（非產品壞）；輔助改為同時認 textarea 後才露出 10 案真差異（停用之 textarea 不能聚焦、選取，唯讀須以 `readOnly` 實現並在 `guardLock` 攔 paste，因 `setRangeText` 不受 readonly 限制；4.0 起分割預覽無提示區、不通知 `unSelect`，皆為上游行為，探測確認後依封裝權責不補發）。XSS 案例須先探測有效載荷（超連結夾帶 `onerror` 有效，Markdown 連結語法被淨化為 `%22` 無效），並以變異副本（`import` 改指 3.11.3 之 `dist` 加 `E2E_VDITOR_DIR` 供應同版 lute）證明修前紅；等載入失敗以 `video.error !== null` 為同步點。細節見 `spec/evidence/2026-11-09-vd01-upgrade-4.0.1.md`。

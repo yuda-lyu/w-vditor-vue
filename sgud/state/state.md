@@ -4,7 +4,7 @@
 
 - 套件：以 Vue 2 封裝 vditor 4.0.1 之 Markdown 編輯器組件 `WVditorVue`（`src/components/WVditorVue.vue`）。`package.json` 版本 1.0.31（本輪未改版、未發布）。
 - 相依：`w-component-vue ^2.5.44`、`vditor ^4.0.1`（2026-11-09 由 `^3.11.3` 升，GHSA-x2mx-f527-mxr9）、`wsemi ^1.9.51`；測試用 `w-package-tools-e2e ^1.0.23`（含 `reserveE2ePorts`）。vditor 之 LICENSE（`node_modules/vditor/LICENSE`）為 MIT。
-- 最近一次驗證：2026-11-09（vd01）全套 `npm test`（`quiet-run --lock`）183 passing、0 failing、0 pending（見下〈2026-11-09 vditor 升 4.0.1〉；該輪末次全套數字以最末一行為準）。前次 2026-11-05（vd309）：180 passing（e2e 157＋單元 23）。`dist` 尚未以 4.0.1 重建（`dist/`、`docs/` 本輪不手改，重建與發布由主控處理）。
+- 最近一次驗證：**2026-11-21（vv585）全套 `npm test`（`quiet-run --lock`）186 passing、0 failing**（w-package-tools-e2e 1.0.46／w-playwright 1.0.3／playwright-core 1.65.1，Chromium 159.0.8154.6；`e2e-readonly-focus` 另於 Chromium 156 實跑 19 passing，見下〈2026-11-21 Chromium 159〉）。前次 2026-11-09（vd01）全套 `npm test`（`quiet-run --lock`）183 passing、0 failing、0 pending（見下〈2026-11-09 vditor 升 4.0.1〉；該輪末次全套數字以最末一行為準）。前次 2026-11-05（vd309）：180 passing（e2e 157＋單元 23）。`dist` 尚未以 4.0.1 重建（`dist/`、`docs/` 本輪不手改，重建與發布由主控處理）。
 
 ## 功能與流程
 
@@ -14,10 +14,17 @@
 | 編輯與回傳 | `spec/流程_編輯與回傳.md`（12） | `test/e2e-editing.test.mjs`（34） | e2e 映射 | 完成；已知落差見該 spec |
 | 頁面更新內容 | `spec/流程_頁面更新內容.md`（10） | `test/e2e-parent-update.test.mjs`（25） | e2e 映射 | 完成；已知落差見該 spec |
 | 唯讀鎖定 | `spec/流程_唯讀鎖定.md`（14；2026-11-09 增 E2E-013 貼上、E2E-014 拖放） | `test/e2e-readonly.test.mjs`（32） | e2e 映射、R-02 | 完成；無已知落差 |
-| 唯讀時之焦點 | `spec/流程_唯讀時之焦點.md`（7） | `test/e2e-readonly-focus.test.mjs`（19） | e2e 映射、R-02 | 完成；已知落差見該 spec（含 2026-11-09 分割預覽不通知取消選取） |
+| 唯讀時之焦點 | `spec/流程_唯讀時之焦點.md`（7） | `test/e2e-readonly-focus.test.mjs`（19） | e2e 映射、R-02 | 完成；已知落差見該 spec（含 2026-11-09 分割預覽不通知取消選取；2026-11-21 分割預覽聚焦時在文件末端，E2E-005 起點改為先回到開頭，R-04） |
 | 提示區插入（含提示區外層 `state` 屬性） | `spec/流程_提示區插入.md`（9；2026-11-09 增 E2E-009，分割預覽不支援提示區） | `test/e2e-key-hint.test.mjs`（14） | e2e 映射、R-01、R-02 | 完成；2026-11-01 補 `state`（Gitea #36）；2026-11-09 分割預覽輪移除（見下） |
 | 預覽之媒體連結安全（2026-11-09 新增） | `spec/流程_預覽之媒體連結安全.md`（4） | `test/e2e-preview.test.mjs`（4） | e2e 映射、R-03 | 完成；vditor 4.0.1 修復 GHSA-x2mx-f527-mxr9，修前紅 3／4 |
 | e2e 靜態站自動換埠（測試設施，非產品功能） | 規格 `dspec/e2e埠與多套件同跑.md` E1～E8、§5 | `test/unit-e2ePorts.test.mjs`（23；EP-001～EP-015） | R-E2E-PORT-01、e2e 映射 C2／C14 | 完成；2026-11-05（vd309，見下） |
+
+## 2026-11-21 Chromium 159（w-package-tools-e2e 1.0.46）下 `e2e-readonly-focus` E2E-005 分割預覽輪（任務 vv585）
+
+- 現況：全套 186 passing；`e2e-readonly-focus` 19 案於 Chromium 156、159 皆綠。組件（`src/`）無改動；對外 API 與選項無變。
+- 起因與結論：瀏覽器升至 159 後，分割預覽之唯讀 textarea 在「插入點在文末且檢視已在底部」時對 PageDown 之處理改變（插入點移到開頭、檢視不捲）；無組件之原生 textarea 同樣如此，屬瀏覽器行為。原測試靠 Tab 聚焦後檢視離底 12px 之巧合通過。處置：測試起點改為先連按 Ctrl+Home 回到文件開頭（`homeUntilTop`）並前提斷言捲動位置為 0（R-04）；② 之判準未變。細節 `spec/evidence/2026-11-21-vv585-sv-pagedown.md`。
+- 已知缺口：分割預覽唯讀時 Tab 聚焦即在文件末端（與另兩模式之開頭不同；原生 textarea 同）；是否由組件於鎖定時重設到開頭未定（`spec/流程_唯讀時之焦點.md` 〈已知落差〉），待裁示。
+- 標準圖：本套件不建像素標準圖，無變動。
 
 ## 2026-11-09 vditor 3.11.3 升 4.0.1（任務 vd01）
 

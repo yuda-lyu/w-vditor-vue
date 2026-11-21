@@ -175,6 +175,25 @@
 - **修前紅**（變異副本以 vditor 3.11.3 取代）：先產副本 `node tmp/vd01/make-mut-old.mjs`（腳本不入庫：讀 `src/components/WVditorVue.vue`，把 `import Vditor from 'vditor'` 與 `import 'vditor/dist/index.css'` 改為指向 `tmp/vd01/old/package/dist/`，舊版以 `npm pack vditor@3.11.3 --pack-destination tmp/vd01/pack` 解開至 `tmp/vd01/old`），再 `E2E_SRC_DIR=tmp/vd01/mut-old-vditor E2E_VDITOR_DIR=tmp/vd01/old/package npx mocha test/e2e-preview.test.mjs --reporter spec --timeout 180000`：E2E-001、002、004 紅（`"xss":1`），E2E-003 綠。2026-11-09 實測結果見 `spec/evidence/2026-11-09-vd01-upgrade-4.0.1.md` 第 6 節。
 - **日後**：升 vditor 時重跑本流程；若新版再改 `mediaRender`，以 `spec/evidence/2026-11-09-vd01-xss-probe.json` 之三種輸入（超連結夾帶、Markdown 連結、正常連結）重探。
 
+### R-04 e2e 捲動類斷言之起點：不依賴瀏覽器預設之插入點與捲動位置（2026-11-21 vv585）
+
+- **規則**：
+  1. 驗「某鍵使編輯區捲動」之案例，起點須先以使用者可做之鍵盤動作置於可捲動處（文件開頭），並以前提斷言起點（捲動位置為 0）；不得依賴 Tab 聚焦後之預設位置。理由：分割預覽之編輯區為 textarea，內容由程式寫入使插入點在文末，Tab 聚焦即捲到近底（`LONG` 實測 1232／最大 1244），自此按 PageDown 幾乎無可捲動量，瀏覽器之處理隨版本而異（Chromium 156 把剩餘 12px 捲完、159 改捲頁面並把插入點移到開頭，無組件之原生 textarea 同），原案例靠 12px 之巧合通過（`spec/evidence/2026-11-21-vv585-sv-pagedown.md`）。
+  2. 回到開頭用條件連按（`test/tools/e2e-setup.mjs` 之 `homeUntilTop`：連按 Ctrl+Home 直到捲動位置為 0），不用固定次數：159 之第一次 Ctrl+Home 只移插入點、不捲動，第二次才捲到開頭，156 一次即到；之後以 `waitUntilExist` 確認為 0，不用固定等待。
+  3. 測試不寫瀏覽器版本相依之數值（`1232`、`12px` 等），期望值取自同一頁之實量（`editorScrollTop`）。
+  4. 組件不介入此行為：唯讀同原生 readonly（ADR-009）；是否於鎖定時把分割預覽之插入點與捲動位置重設到開頭屬使用體驗之取捨，現行不做（`spec/流程_唯讀時之焦點.md` 〈已知落差〉）。
+- **盤點指令**（可重跑）：Grep `editorScrollTop|scrollTop|PageDown|PageUp` 於 `test/`（斷言捲動之站點）；Grep `Control\+Home|Control\+End|'End'|'Home'` 於 `test/`（判別為定位插入點供輸入，或為捲動之起點）。
+- **站點全集與判準**（2026-11-21）：
+
+| 站點 | 用途 | 判定 |
+|---|---|---|
+| `e2e-readonly-focus` E2E-005（`:164-178`） | 斷言 PageDown 使捲動位置增加 | 已套：`homeUntilTop` ＋ 起點為 0 之前提斷言 ＋ `waitUntilExist`；156、159 皆綠；變異 M1（PageDown 預設行為被阻止）三模式紅、M2（分割預覽 `overflow:hidden`）分割預覽紅 |
+| `e2e-editing` `:207`、`e2e-key-hint` `:85`（`End`）、`e2e-readonly` `:253`（`Control+End`）、`e2e-setup.mjs:634`（`clickEnd`，`Control+End`）、`e2e-parent-update` `:222`（`Control+Home`） | 可編輯時定位插入點供輸入或選取 | 不適用：非捲動斷言，不觀察捲動位置 |
+
+- **對應測試**：`e2e-readonly-focus` E2E-005（三模式）。單檔指令：`npx mocha test/e2e-readonly-focus.test.mjs --reporter spec --timeout 180000 --grep "E2E-005"`。
+- **變異證明**（`spec/evidence/2026-11-21-vv585-sv-pagedown.md`；變異副本置 `./tmp/<任務>/mut-<名>/`，`E2E_SRC_DIR` 指向，見上〈元件來源〉）：M1 於 `guardLock` 之 keydown 分支鎖定時對 `PageDown` 呼叫 `preventDefault` → E2E-005 三模式紅（逾時於「編輯區已捲動」）；M2 於 `lockSvEditor` 加 `ele.style.overflow = 'hidden'` → 分割預覽輪紅（逾時於「編輯區已回到文件開頭」，其餘兩模式綠）。
+- **瀏覽器／Playwright 升版時**：全跑 `e2e-readonly-focus`；升版後案例紅時先以 `spec/evidence/2026-11-21-vv585-probe-native.mjs`（無組件之原生 textarea）對照，原生同樣變動者為瀏覽器行為，改測試起點而非組件。
+
 ### 改動範圍 → e2e 檔（全域規範：跑受影響者；全套只在最末輪由主控跑）
 
 | 改動範圍 | 必跑 | 理由 |
@@ -185,4 +204,5 @@
 | 預覽區（`settings.preview`、vditor 預覽與媒體渲染） | `e2e-preview` | R-03 |
 | `WVditorVue.vue` 之編輯與回傳、回寫判斷、唯讀鎖定、載入與銷毀 | 該流程檔（`editing`、`parent-update`、`readonly`、`readonly-focus`、`load`）及 `key-hint` | 單一元件，流程間共用 `loadValue`／`applyEditable` |
 | `test/tools/e2e-setup.mjs`、`test/host/index.html`、`docs.json` | 全部七檔 | 共用基礎 |
+| `w-package-tools-e2e`、`w-playwright` 升版（瀏覽器修訂改變） | 全部七檔＋`unit-e2ePorts` | 瀏覽器對鍵盤、捲動、焦點之預設行為隨版本而變（R-04） |
 | `test/tools/e2ePorts.mjs`、`e2eLib.mjs`（埠相關）、`e2ePortsOccupier.mjs`、`e2ePortsHolder.mjs` | `unit-e2ePorts`＋任一 e2e 檔（代表性：`e2e-load`；與外部占用者併用另見 R-E2E-PORT-01 情境驅動） | 靜態站埠之共用基礎 |

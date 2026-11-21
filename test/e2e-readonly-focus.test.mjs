@@ -5,7 +5,7 @@ import assert from 'assert'
 import {
     MODES, MODE_NAMES, DOCS, keyModeSwitch, keysRo, launchBrowser, createFlow,
     waitEditable, waitInputs, waitFocusLeft, states, editorScrollTop, hostInfo,
-    editor, typeAtEnd, focusInEditor, focusOnEditorItself, activeInfo, tabUntil
+    editor, typeAtEnd, focusInEditor, focusOnEditorItself, activeInfo, tabUntil, homeUntilTop
 } from './tools/e2e-setup.mjs'
 import { waitUntilExist } from './tools/e2eLib.mjs'
 
@@ -161,7 +161,15 @@ describe('e2e-readonly-focus：唯讀時之焦點', function() {
         it(`E2E-005 [${MODE_NAMES[mode]}] 唯讀時以 Tab 鍵進入長文件捲動並一次離開`, async function() {
             let { page, logs } = await flow.openReady(browser, { mode, doc: 'LONG', editable: '0', focusLog: '1' })
             assert.strictEqual(await tabUntil(page, focusOnEditorItself), true) //①
+            //起點置於文件開頭, 再驗PageDown使捲動位置增加: 分割預覽之編輯區(textarea)取得焦點時, 插入點與捲動位置在文末(內容由程式寫入, 同原生textarea),
+            //自文末按PageDown幾乎無可捲動量(尚餘內距12px), 瀏覽器此時之行為隨版本而異(Chromium 156再捲至底, 159改捲頁面且插入點移到開頭), 不屬唯讀之捲動能力; 所見即所得與即時渲染之編輯區原已在開頭
+            await homeUntilTop(page)
+            await waitUntilExist(page, '編輯區已回到文件開頭', () => {
+                let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable], .WVditorFix textarea.vditor-sv')].find((e) => e.offsetParent !== null)
+                return ed.scrollTop === 0
+            })
             let top0 = await editorScrollTop(page)
+            assert.strictEqual(top0, 0) //前提: 自文件開頭起算
             await page.keyboard.press('PageDown')
             await waitUntilExist(page, '編輯區已捲動', (t) => {
                 let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable], .WVditorFix textarea.vditor-sv')].find((e) => e.offsetParent !== null)
