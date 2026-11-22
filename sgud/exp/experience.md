@@ -2,6 +2,13 @@
 
 本檔為執行工作時特有之累積經驗,留給後續之嘗試、執行與判斷,由agent自行編列、擴充與維護.過長時抽出舊者為`experience_<年月日>.md`,並於本檔註明何時抽出.
 
+## 2026-11-22 自 Claude Code 自動記憶提取之舊教訓（原記於 2026-08-19～2026-10-04；處理流程見 `sgud/proc/process.md`）
+
+- **`extractHtml` 產出之範例 html 是 in-DOM template，camelCase prop 靜默失效**（2026-08-19）：`w-package-tools` 之 `extractHtml` 由 `.vue` 範例產出 `test-html/ex-*.html`，其為 in-DOM template（`new Vue({el:'#app'})` 直接解析既有 DOM），瀏覽器把屬性名全部小寫化，`:keyHint` 變 `:keyhint` 而對不上 prop，且**無任何錯誤訊息**——組件照常掛載，只有該 prop 恆為預設值。`extractHtml` 並未串接 `kebabPropsVueTemp`，須於 `toolg/gExtractHtml.mjs` 之 `getAppTmp()` 自行包 `kebabPropsVueTemp(v.tmp)`（現況已套，檔內有註解）；它只作用於 template（不含 head／script），實測不傷 `style="font-size:1.5rem;"`、`v-slot:content=`、`@click="a(); b();"`。凡 prop 有多字 camelCase（`keyHint`、`hintBorderRadius`…）者新增範例後，驗收須對產出之 html 實跑瀏覽器看該 prop 之行為，不能只看頁面有渲染出來。
+- **提示區（hint）不改用 w-component-vue 之 WPopup／WTooltip**（2026-08-19 決議維持現況，2026-11-22 重驗仍成立）：提示區外層 `.WPopperFix` 直接由 `buildPopper.mjs` 驅動（`BuildPopper`，規則帳本 R-01），錨點是 vditor 執行期依游標位置產生之 `div.vditor-hint`（`WVditorVue.vue` 之 `funGetDivTrigger` 以 `vo.$el.querySelector('[class="vditor-hint"]')` 取得）。`WTooltip.vue` 之 `funGetDivTrigger()` 寫死回傳其自身 template 內包住 `trigger` slot 之 `$refs.divTrigger`，props 沒有任何一個能注入外部錨點元素；要改須動上游加 `triggerElement`／`funGetTrigger` prop，或在本組件內做「影子 trigger」再同步位置（比現況更複雜易失準）。另三項差異（就算解決錨點也要處理）：WPopup 內容走 `Teleport to="body"`（現況留在組件內）；WPopup 之 slot props 只有 `funHide`，缺本組件特有之 `hint`（哪個 keyHint 觸發）與 `funInsert`（把選中值插回編輯器）；預設外觀不同（WTooltip 預設底色 `rgba(60,60,60,0.75)` 深色，本組件 `hintBackgroundColor` 預設 `#fff`），換過去會改動既有 UI。
+- **唯讀類問題先列「焦點進入途徑 × 事件 × 模式」全表再設計**（2026-10-04）：唯讀之第三、四輪修改都漏格；現行定案見 ADR-004、ADR-005 與 `spec/流程_唯讀時之焦點.md`。
+- **審查期間不改受審檔**（2026-10-04）：第五輪（載入中關閉之殘留）三方審查（兩位 Opus、一位 GPT sol）期間，我先改了受審之 `WVditorVue.vue`，sol 讀到新內容致 canary 失敗，部分意見針對改後版本而非送審版本。教訓：派審未回報前，不改受審之檔（原始碼與測試）。
+
 ## 2026-11-21 瀏覽器升至 Chromium 159 後分割預覽 PageDown 案紅（任務 vv585；規則見 `sgud/rule/rulebook.md` R-04）
 
 - **先分離變因再動手**：相依升版同時換了瀏覽器修訂（156 → 159）與旗標組（新增 `--lang=zh-TW`）。三格對照（原樣、去掉 `--lang`、暫換舊相依）即得：紅只隨瀏覽器二進位而變，語系不是變因。對照要跑「同一份測試全檔」，不只是單案，才看得出是否僅此一案。
