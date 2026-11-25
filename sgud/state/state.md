@@ -2,9 +2,9 @@
 
 本檔只記現況，不寫過程（過程寫入 `sgud/exp/experience.md`）。規則帳本為藍圖（`sgud/rule/rulebook.md`），與本檔比對即知尚未做到者。
 
-- 套件：以 Vue 2 封裝 vditor 4.0.1 之 Markdown 編輯器組件 `WVditorVue`（`src/components/WVditorVue.vue`）。`package.json` 版本 1.0.31（本輪未改版、未發布）。
-- 相依：`w-component-vue ^2.5.44`、`vditor ^4.0.1`（2026-11-09 由 `^3.11.3` 升，GHSA-x2mx-f527-mxr9）、`wsemi ^1.9.51`；測試用 `w-package-tools-e2e ^1.0.23`（含 `reserveE2ePorts`）。vditor 之 LICENSE（`node_modules/vditor/LICENSE`）為 MIT。
-- 最近一次驗證：**2026-11-21（vv585）全套 `npm test`（`quiet-run --lock`）186 passing、0 failing**（w-package-tools-e2e 1.0.46／w-playwright 1.0.3／playwright-core 1.65.1，Chromium 159.0.8154.6；`e2e-readonly-focus` 另於 Chromium 156 實跑 19 passing，見下〈2026-11-21 Chromium 159〉）。前次 2026-11-09（vd01）全套 `npm test`（`quiet-run --lock`）183 passing、0 failing、0 pending（見下〈2026-11-09 vditor 升 4.0.1〉；該輪末次全套數字以最末一行為準）。前次 2026-11-05（vd309）：180 passing（e2e 157＋單元 23）。`dist` 尚未以 4.0.1 重建（`dist/`、`docs/` 本輪不手改，重建與發布由主控處理）。
+- 套件：以 Vue 2 封裝 vditor 4.0.1 之 Markdown 編輯器組件 `WVditorVue`（`src/components/WVditorVue.vue`）。`package.json` 版本 1.0.60（本輪未改版、未發布）。
+- 相依：`w-component-vue ^2.5.72`、`vditor ^4.0.1`（2026-11-09 由 `^3.11.3` 升，GHSA-x2mx-f527-mxr9）、`wsemi ^1.9.77`；測試用 `w-package-tools-e2e ^1.0.53`（含 `reserveE2ePorts`）、`w-package-tools ^1.1.31`。vditor 之 LICENSE（`node_modules/vditor/LICENSE`）為 MIT。
+- 最近一次驗證：**2026-11-25（tvd619）全套 `npm test`（`quiet-run --lock`）186 passing、0 failing**（修法後末次；`e2e-readonly-focus` 整檔另連跑 5 次各 19 passing；Chromium 159.0.8154.6、playwright-core 1.65.1）。前次 2026-11-21（vv585）全套 `npm test`（`quiet-run --lock`）186 passing、0 failing**（w-package-tools-e2e 1.0.46／w-playwright 1.0.3／playwright-core 1.65.1，Chromium 159.0.8154.6；`e2e-readonly-focus` 另於 Chromium 156 實跑 19 passing，見下〈2026-11-21 Chromium 159〉）。前次 2026-11-09（vd01）全套 `npm test`（`quiet-run --lock`）183 passing、0 failing、0 pending（見下〈2026-11-09 vditor 升 4.0.1〉；該輪末次全套數字以最末一行為準）。前次 2026-11-05（vd309）：180 passing（e2e 157＋單元 23）。`dist` 已含 vditor 4.0.1（2026-11-25 核對 `dist/w-vditor-vue.umd.js` 內之版本字串；`dist/`、`docs/` 由主控之連動流程重建，本輪不手改）。
 
 ## 功能與流程
 
@@ -14,10 +14,17 @@
 | 編輯與回傳 | `spec/流程_編輯與回傳.md`（12） | `test/e2e-editing.test.mjs`（34） | e2e 映射 | 完成；已知落差見該 spec |
 | 頁面更新內容 | `spec/流程_頁面更新內容.md`（10） | `test/e2e-parent-update.test.mjs`（25） | e2e 映射 | 完成；已知落差見該 spec |
 | 唯讀鎖定 | `spec/流程_唯讀鎖定.md`（14；2026-11-09 增 E2E-013 貼上、E2E-014 拖放） | `test/e2e-readonly.test.mjs`（32） | e2e 映射、R-02 | 完成；無已知落差 |
-| 唯讀時之焦點 | `spec/流程_唯讀時之焦點.md`（7） | `test/e2e-readonly-focus.test.mjs`（19） | e2e 映射、R-02 | 完成；已知落差見該 spec（含 2026-11-09 分割預覽不通知取消選取；2026-11-21 分割預覽聚焦時在文件末端，E2E-005 起點改為先回到開頭，R-04） |
+| 唯讀時之焦點 | `spec/流程_唯讀時之焦點.md`（7） | `test/e2e-readonly-focus.test.mjs`（19） | e2e 映射、R-02 | 完成；已知落差見該 spec（含 2026-11-09 分割預覽不通知取消選取；2026-11-21 分割預覽聚焦時在文件末端，E2E-005 起點改為先回到開頭，R-04；2026-11-25 回到開頭改為等捲動靜止，R-04 第 2、5 點） |
 | 提示區插入（含提示區外層 `state` 屬性） | `spec/流程_提示區插入.md`（9；2026-11-09 增 E2E-009，分割預覽不支援提示區） | `test/e2e-key-hint.test.mjs`（14） | e2e 映射、R-01、R-02 | 完成；2026-11-01 補 `state`（Gitea #36）；2026-11-09 分割預覽輪移除（見下） |
 | 預覽之媒體連結安全（2026-11-09 新增） | `spec/流程_預覽之媒體連結安全.md`（4） | `test/e2e-preview.test.mjs`（4） | e2e 映射、R-03 | 完成；vditor 4.0.1 修復 GHSA-x2mx-f527-mxr9，修前紅 3／4 |
 | e2e 靜態站自動換埠（測試設施，非產品功能） | 規格 `dspec/e2e埠與多套件同跑.md` E1～E8、§5 | `test/unit-e2ePorts.test.mjs`（23；EP-001～EP-015） | R-E2E-PORT-01、e2e 映射 C2／C14 | 完成；2026-11-05（vd309，見下） |
+
+## 2026-11-25 全庫連動後 `e2e-readonly-focus` E2E-005 分割預覽輪整檔轉紅（任務 tvd619）
+
+- 現況：全套 186 passing；`e2e-readonly-focus` 整檔 19 案連跑 5 次全綠；E2E-005 三模式連跑 10 次全綠（修前同法 10 次中分割預覽輪紅 8）。組件（`src/`）、`dist`、`package.json`、相依皆無改動；對外 API 與選項無變。
+- 歸因：測試同步條件缺陷（時序競賽），非依賴回歸——連動前提交之暫存副本（舊相依組）整檔亦紅；兩相依組之各自有套件 `src/` 逐檔相同。Chromium 對 Ctrl+Home 為平滑捲動（約 170ms），測試於「捲動位置讀到 0」後 1～3ms 內按 PageDown，該次按鍵實測被吞（推定為動畫末幀）。處置：`test/tools/e2e-setup.mjs` 新增 `waitScrollSettled`（捲動位置連續 3 幀不變）、`homeUntilTop` 改為每次 Ctrl+Home 後等靜止並回傳是否靜止於 0（R-04 第 2、5 點）；E2E-005 起點改為斷言 `homeUntilTop` 為 true。細節 `spec/evidence/2026-11-25-tvd619-smooth-scroll.md`。
+- 已知缺口：先前各輪皆綠之原因未能證實（失敗機率隨環境而變；現行空閒環境下原序列約 1／11 通過）；以 `--disable-smooth-scrolling` 統一關閉平滑捲動屬 `w-package-tools-e2e` 旗標組之擴充提案，見 `sgud/feedback/feedback.md` 2026-11-25 條，本套件不依賴。
+- 標準圖：本套件不建像素標準圖，無變動。
 
 ## 2026-11-21 Chromium 159（w-package-tools-e2e 1.0.46）下 `e2e-readonly-focus` E2E-005 分割預覽輪（任務 vv585）
 
@@ -33,7 +40,7 @@
 - 測試：全套 183 passing（升版前 180）；後續補 E2E-014 後 186（見下方最末驗證行）。數字變化：key-hint 18→14（分割預覽輪 5 案移除、新增 E2E-009）、新增 `e2e-preview` 4、readonly 26→32（新增 E2E-013、014 各三模式）。升版後未調整碼之基準：144 passing、36 failing（全為分割預覽輪，成因為測試輔助找不到 textarea），細節 `spec/evidence/2026-11-09-vd01-upgrade-4.0.1.md`。
 - 變異：新增之元件碼 M1（不設 readOnly）9 案紅、M2（不攔 paste）紅、M3（不還原 readOnly）紅；`detectAndShowHint` 之 sv 檢查與既有 `drop` 攔截為防禦性（M5、M6 無案例能單獨擊殺，規則帳本 R-02 已記）。
 - 測試設施：`e2e-setup.mjs` 之編輯區觀察統一支援 textarea；新增 `previewMedia`、環境變數 `E2E_VDITOR_DIR`；`test/host/docs.json` 新增 `XSS_LINK`、`XSS_VIDEO`、`XSS_AUDIO`、`MEDIA_OK`；`FLOW_PORTS` 新增 `preview: 8142`。
-- 待主控：①`C:/opensrcOper/dspec/e2e埠與多套件同跑.md` 之埠登錄（w-vditor-vue 8136～8141）更新為 8136～8142；②`dist/` 以 4.0.1 重建並發布（使用端取得修復須新版 `dist`）；③是否需要於分割預覽自行實作提示區（本輪判為不做，見 `流程_提示區插入`〈已知落差〉）。
+- 待主控：①主控跨套件規格「e2e 埠與多套件同跑」（dspec）之埠登錄（本套件 8136～8141）更新為 8136～8142；②`dist/` 以 4.0.1 重建並發布（使用端取得修復須新版 `dist`）；③是否需要於分割預覽自行實作提示區（本輪判為不做，見 `流程_提示區插入`〈已知落差〉）。
 
 ## 2026-11-01 配合 w-component-vue 2.5.35（Gitea #36）
 

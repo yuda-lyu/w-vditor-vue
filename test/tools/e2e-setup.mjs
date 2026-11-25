@@ -770,12 +770,56 @@ async function tabUntil(page, check, max = 80) {
 }
 
 
-//homeUntilTop, 焦點在編輯區本身時連按Ctrl+Home, 直到可見編輯區之捲動位置為0(最多max次), 回傳是否見到為0(捲動可能稍後才完成, 呼叫端須另以偵測等待確認);
-//分割預覽(textarea)之唯讀編輯區自文末起算時, Chromium 159之第一次Ctrl+Home只把插入點移到開頭而不捲動檢視, 第二次才捲到開頭(156一次即捲到), 故以條件連按, 不以固定次數
+//waitScrollSettled, 等第一個編輯器可見編輯區之捲動位置連續frames幀(requestAnimationFrame)不變, 回傳靜止時之捲動位置; 無編輯區, 或逾timeout毫秒(頁內計時器, 頁面不繪製時亦會觸發)仍未靜止回傳null(逾時只為防懸置, 不是同步手段);
+//以「連續數幀不變」而非「位置到達目標」判定捲動完成: 鍵盤觸發之捲動(Ctrl+Home、PageDown等)在Chromium為平滑捲動(約170ms之動畫), 實測於位置讀到目標之後1～3ms內再送捲動鍵會被吞掉(推定為該幀動畫尚未結束;
+//spec/evidence/2026-11-25-tvd619-smooth-scroll.md: 分割預覽輪未捲動; 關閉平滑捲動或晚一幀以上再按則皆捲動); frames取3(探針下1幀會在動畫開始前即判靜止於起點, 2與3幀無差別, 3幀保留餘裕約50ms)
+async function waitScrollSettled(page, frames = 3, timeout = 5000) {
+    return page.evaluate(([n, ms]) => {
+        return new Promise((resolve) => {
+            let ed = [...document.querySelectorAll('.WVditorFix .vditor-reset[contenteditable], .WVditorFix textarea.vditor-sv')].find((e) => e.offsetParent !== null)
+            if (!ed) {
+                resolve(null)
+                return
+            }
+            let done = false
+            let finish = (v) => {
+                done = true
+                resolve(v)
+            }
+            setTimeout(() => finish(null), ms)
+            let last = ed.scrollTop
+            let cnt = 0
+            let tick = () => {
+                if (done) {
+                    return
+                }
+                let cur = ed.scrollTop
+                if (cur === last) {
+                    cnt++
+                }
+                else {
+                    cnt = 0
+                    last = cur
+                }
+                if (cnt >= n) {
+                    finish(cur)
+                }
+                else {
+                    requestAnimationFrame(tick)
+                }
+            }
+            requestAnimationFrame(tick)
+        })
+    }, [frames, timeout])
+}
+
+
+//homeUntilTop, 焦點在編輯區本身時連按Ctrl+Home, 每次按後等捲動靜止(waitScrollSettled), 直到靜止於0(最多max次), 回傳是否靜止於0(回傳true時不須再另行等待);
+//分割預覽(textarea)之唯讀編輯區自文末起算時, Chromium 159之第一次Ctrl+Home只把插入點移到開頭而不捲動檢視, 第二次才以平滑捲動捲到開頭(156一次即捲到), 故以條件連按, 不以固定次數
 async function homeUntilTop(page, max = 5) {
     for (let k = 0; k < max; k++) {
         await page.keyboard.press('Control+Home')
-        if ((await editorScrollTop(page)) === 0) {
+        if ((await waitScrollSettled(page)) === 0) {
             return true
         }
     }
@@ -894,6 +938,7 @@ export {
     focusOnEditorItself,
     activeInfo,
     tabUntil,
+    waitScrollSettled,
     homeUntilTop,
     startSampler,
     stopSampler,
