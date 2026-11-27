@@ -9,6 +9,16 @@
 - **唯讀類問題先列「焦點進入途徑 × 事件 × 模式」全表再設計**（2026-10-04）：唯讀之第三、四輪修改都漏格；現行定案見 ADR-004、ADR-005 與 `spec/流程_唯讀時之焦點.md`。
 - **審查期間不改受審檔**（2026-10-04）：第五輪（載入中關閉之殘留）三方審查（兩位 Opus、一位 GPT sol）期間，我先改了受審之 `WVditorVue.vue`，sol 讀到新內容致 canary 失敗，部分意見針對改後版本而非送審版本。教訓：派審未回報前，不改受審之檔（原始碼與測試）。
 
+## 2026-11-27 殘留預約夾具改以 `noteOwn` 之 Promise 為同步點（排程第 674 項，任務 v674；規則見 `sgud/rule/rulebook.md` R-E2E-PORT-01 第 7 點）
+
+- **同步點取被測 API 回傳之 Promise，不輪詢其副作用**：w-package-tools-e2e 1.0.60 起 `noteOwn(child)` 回傳 `Promise<{ ok, attempts, reason }>`（涵蓋該 child 之那次取樣寫入預約檔後解開，永不 reject）。舊寫法（夾具立即印行、測試端 `waitFor` 輪詢預約檔，上限 30 秒）在全機滿載取樣慢時逾時；新寫法夾具 `await` 後才印行，測試讀到該行即讀預約檔一次。取樣失敗（`ok:false`）時夾具印含 `reason` 之失敗行並以離開碼 1 結束，不印成功行。
+- **修前紅之取法**：以 `git archive HEAD test` 解到 `./tmp/<任務>/prered/`，舊夾具僅加環境變數注入延遲（仍不 await），在該副本跑舊測試——無延遲綠（1.3 秒）、延遲 20 秒綠（20.9 秒）、延遲 40 秒紅（39 秒，`逾時未見`，即舊 `waitFor` 之 30 秒上限）；修後以副本把 EP-015、EP-016 之延遲改 40 秒，綠（各約 42 秒）。常設之 EP-016 只取 4 秒（證同步點語意，不為重現舊上限而拖慢單元測試）；「注入確已生效」不以耗時（`elapsed ≥ 延遲`）斷言——首版如此寫，審查時依計時器規格改為夾具回報 `tableDone`（注入之取表已完成次數）、測試斷言 `≥ 1`，同時擊殺「不 await」與「注入無效」。
+- **延遲只經函式庫之正式注入點 `opt.tableAsync`，延遲後仍取真實行程表**（`listProcessTable`，經 `e2eLib.mjs` 轉出）：偽造之行程表使記下之身分無真實起始時間，EP-015「不下殺」之斷言可能因身分不符而假綠。夾具以環境變數 `E2E_PORTS_FIXTURE_TABLE`（`delay:<毫秒>`、`fail`）開啟，由測試端 `startStaleHolder` 明給（先刪掉繼承之同名變數）；正式 e2e 流程不經夾具。`fail` 模式併用 `noteRetryMs: 0` 使有界重試立即用盡。
+- **夾具等待 Promise 期間須自行保持事件迴圈**：函式庫之計時器與背景查詢皆 `unref`，無其他事物時行程在 Promise 解開前即結束（頂層 await 未了結），測試端見「子行程輸出結束前未見一行」。變異 F6（拿掉保持用計時器）由 EP-015、EP-017 擊殺；延遲模式因注入之計時器為 ref 而不暴露此缺陷，故無延遲路徑須有案。
+- **互為備援之斷言以組合變異各證**：T2（EP-015 不斷言預約檔記有誘餌）、T4（EP-016 同）、T5（EP-016 不斷言延遲生效）單獨存活；F1（不 await）單獨時 EP-015 紅，F1+T2 時 EP-015 綠而 EP-016 紅，證 EP-015 之該斷言確由 F1 擊殺；F1+T4、F1+T5 之 EP-016 各由另一斷言擊殺；F5（延遲注入無效）只有「延遲生效」之前提斷言抓得到。「不檢 `ok`」於夾具端（F2）與測試端（T1，以 `assertNoted` 自檢案擊殺）各有專屬案。
+- **變異 harness**：於 `./tmp/<任務>/mut/<id>/` 複製 `test/` 套用變異（錨點須恰命中 1 次），以 `mocha --reporter json --reporter-option output=<檔>` 取各案結果；整個 harness 經 `quiet-run --lock` 一次包住，不動 repo。`quiet-run` 無 `--env`，需設環境變數時用 `spawnSync`＋`env` 之小包裝腳本置於 `--` 之後。
+- **`npm i <套件>@<版> -D` 之副作用**：同步 `package-lock.json` 之根版號（HEAD 之 lock 為 1.0.66、`package.json` 為 1.0.67）並給 `package.json` 補檔尾換行（原無）；「只允許該項依賴變動」時須以 `git diff -U0` 核對並還原。Edit 會剪掉尾端空白，無法刪除檔尾換行，改以 Write 寫全檔（不帶結尾換行）。
+
 ## 2026-11-25 全庫連動後 `e2e-readonly-focus` E2E-005〔分割預覽〕整檔轉紅（任務 tvd619；規則見 `sgud/rule/rulebook.md` R-04 第 2、5 點；證據 `spec/evidence/2026-11-25-tvd619-smooth-scroll.md`）
 
 - **二分第一步：先在「舊版」暫存副本重現，不是先換依賴**。兩個連動提交各 `git archive` 到暫存夾、各自 `npm ci`，整檔 e2e：舊版亦紅，即排除依賴升版，不必再逐一換套件。逐套件 `diff -rq` 兩副本之 `node_modules/<套件>/src` 全相同（只有 `dist` 與 `package.json` 差），也證明這輪連動對測試路徑無實質變更。

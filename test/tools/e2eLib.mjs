@@ -5,11 +5,12 @@ import waitUntilExist from 'w-package-tools-e2e/src/waitUntilExist.mjs'
 import pollUntil from 'w-package-tools-e2e/src/pollUntil.mjs'
 import createKnownDefect from 'w-package-tools-e2e/src/createKnownDefect.mjs'
 import reserveE2ePorts, { createE2ePortClaimer } from 'w-package-tools-e2e/src/reserveE2ePorts.mjs'
-import { describePortOwners } from 'w-package-tools-e2e/src/reapShardProcesses.mjs'
+import { describePortOwners, listProcessTable } from 'w-package-tools-e2e/src/reapShardProcesses.mjs'
 import pidExists from 'w-package-tools-e2e/src/pidExists.mjs'
 
 
 //createE2ePortClaimer、pidExists僅供單元測試(unit-e2ePorts.test.mjs)讀取預約與判斷行程是否存活
+//listProcessTable僅供殘留預約之測試夾具於注入延遲之tableAsync內取真實行程表(使記下之身分為真實起始時間)
 export {
     launchBrowser,
     waitUntilExist,
@@ -18,5 +19,6 @@ export {
     reserveE2ePorts,
     describePortOwners,
     createE2ePortClaimer,
-    pidExists
+    pidExists,
+    listProcessTable
 }

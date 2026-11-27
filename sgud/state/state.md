@@ -2,9 +2,9 @@
 
 本檔只記現況，不寫過程（過程寫入 `sgud/exp/experience.md`）。規則帳本為藍圖（`sgud/rule/rulebook.md`），與本檔比對即知尚未做到者。
 
-- 套件：以 Vue 2 封裝 vditor 4.0.1 之 Markdown 編輯器組件 `WVditorVue`（`src/components/WVditorVue.vue`）。`package.json` 版本 1.0.60（本輪未改版、未發布）。
-- 相依：`w-component-vue ^2.5.72`、`vditor ^4.0.1`（2026-11-09 由 `^3.11.3` 升，GHSA-x2mx-f527-mxr9）、`wsemi ^1.9.77`；測試用 `w-package-tools-e2e ^1.0.53`（含 `reserveE2ePorts`）、`w-package-tools ^1.1.31`。vditor 之 LICENSE（`node_modules/vditor/LICENSE`）為 MIT。
-- 最近一次驗證：**2026-11-25（tvd619）全套 `npm test`（`quiet-run --lock`）186 passing、0 failing**（修法後末次；`e2e-readonly-focus` 整檔另連跑 5 次各 19 passing；Chromium 159.0.8154.6、playwright-core 1.65.1）。前次 2026-11-21（vv585）全套 `npm test`（`quiet-run --lock`）186 passing、0 failing**（w-package-tools-e2e 1.0.46／w-playwright 1.0.3／playwright-core 1.65.1，Chromium 159.0.8154.6；`e2e-readonly-focus` 另於 Chromium 156 實跑 19 passing，見下〈2026-11-21 Chromium 159〉）。前次 2026-11-09（vd01）全套 `npm test`（`quiet-run --lock`）183 passing、0 failing、0 pending（見下〈2026-11-09 vditor 升 4.0.1〉；該輪末次全套數字以最末一行為準）。前次 2026-11-05（vd309）：180 passing（e2e 157＋單元 23）。`dist` 已含 vditor 4.0.1（2026-11-25 核對 `dist/w-vditor-vue.umd.js` 內之版本字串；`dist/`、`docs/` 由主控之連動流程重建，本輪不手改）。
+- 套件：以 Vue 2 封裝 vditor 4.0.1 之 Markdown 編輯器組件 `WVditorVue`（`src/components/WVditorVue.vue`）。`package.json` 版本 1.0.67（本輪未改版、未發布）。
+- 相依：`w-component-vue ^2.5.72`、`vditor ^4.0.1`（2026-11-09 由 `^3.11.3` 升，GHSA-x2mx-f527-mxr9）、`wsemi ^1.9.77`；測試用 `w-package-tools-e2e ^1.0.60`（含 `reserveE2ePorts`；1.0.60 起 `noteOwn` 回傳 Promise，2026-11-27 v674）、`w-package-tools ^1.1.31`。vditor 之 LICENSE（`node_modules/vditor/LICENSE`）為 MIT。
+- 最近一次驗證：**2026-11-27（v674）全套 `npm test`（`quiet-run --lock`）188 passing、0 failing、0 pending**（`unit-e2ePorts` 25 案；EP-004、015、016、017 另連跑 5 次各 4 passing；w-package-tools-e2e 1.0.60）。前次 **2026-11-25（tvd619）全套 `npm test`（`quiet-run --lock`）186 passing、0 failing**（修法後末次；`e2e-readonly-focus` 整檔另連跑 5 次各 19 passing；Chromium 159.0.8154.6、playwright-core 1.65.1）。前次 2026-11-21（vv585）全套 `npm test`（`quiet-run --lock`）186 passing、0 failing**（w-package-tools-e2e 1.0.46／w-playwright 1.0.3／playwright-core 1.65.1，Chromium 159.0.8154.6；`e2e-readonly-focus` 另於 Chromium 156 實跑 19 passing，見下〈2026-11-21 Chromium 159〉）。前次 2026-11-09（vd01）全套 `npm test`（`quiet-run --lock`）183 passing、0 failing、0 pending（見下〈2026-11-09 vditor 升 4.0.1〉；該輪末次全套數字以最末一行為準）。前次 2026-11-05（vd309）：180 passing（e2e 157＋單元 23）。`dist` 已含 vditor 4.0.1（2026-11-25 核對 `dist/w-vditor-vue.umd.js` 內之版本字串；`dist/`、`docs/` 由主控之連動流程重建，本輪不手改）。
 
 ## 功能與流程
 
@@ -17,7 +17,13 @@
 | 唯讀時之焦點 | `spec/流程_唯讀時之焦點.md`（7） | `test/e2e-readonly-focus.test.mjs`（19） | e2e 映射、R-02 | 完成；已知落差見該 spec（含 2026-11-09 分割預覽不通知取消選取；2026-11-21 分割預覽聚焦時在文件末端，E2E-005 起點改為先回到開頭，R-04；2026-11-25 回到開頭改為等捲動靜止，R-04 第 2、5 點） |
 | 提示區插入（含提示區外層 `state` 屬性） | `spec/流程_提示區插入.md`（9；2026-11-09 增 E2E-009，分割預覽不支援提示區） | `test/e2e-key-hint.test.mjs`（14） | e2e 映射、R-01、R-02 | 完成；2026-11-01 補 `state`（Gitea #36）；2026-11-09 分割預覽輪移除（見下） |
 | 預覽之媒體連結安全（2026-11-09 新增） | `spec/流程_預覽之媒體連結安全.md`（4） | `test/e2e-preview.test.mjs`（4） | e2e 映射、R-03 | 完成；vditor 4.0.1 修復 GHSA-x2mx-f527-mxr9，修前紅 3／4 |
-| e2e 靜態站自動換埠（測試設施，非產品功能） | 規格 `dspec/e2e埠與多套件同跑.md` E1～E8、§5 | `test/unit-e2ePorts.test.mjs`（23；EP-001～EP-015） | R-E2E-PORT-01、e2e 映射 C2／C14 | 完成；2026-11-05（vd309，見下） |
+| e2e 靜態站自動換埠（測試設施，非產品功能） | 規格 `dspec/e2e埠與多套件同跑.md` E1～E8、§5 | `test/unit-e2ePorts.test.mjs`（25；EP-001～EP-017） | R-E2E-PORT-01、e2e 映射 C2／C14 | 完成；2026-11-05（vd309，見下）；2026-11-27 殘留預約夾具改以 `noteOwn` 之 Promise 為同步點（v674，見下） |
+
+## 2026-11-27 殘留預約夾具改以 `noteOwn` 之 Promise 為同步點（排程第 674 項，任務 v674）
+
+- 現況：測試用 `w-package-tools-e2e` 升 1.0.60（`package.json`、`package-lock.json` 只有此一項變動）；`test/tools/e2ePortsStaleHolder.mjs` 改 `await r.noteOwn(decoy)`，`ok` 為 `true` 才印成功行（附 `noted`），否則印含 `reason` 之失敗行並以離開碼 1 結束；`unit-e2ePorts` EP-015 讀到該行即同步、只讀預約檔一次（移除輪詢 `waitFor`，該函數已無他用而刪除），新增 EP-016（取樣延遲 4 秒仍綠）、EP-017（取樣失敗如實告知）。延遲與失敗只經夾具內環境變數 `E2E_PORTS_FIXTURE_TABLE` 注入函式庫之正式注入點 `opt.tableAsync`，正式 e2e 流程不受影響（規則帳本 R-E2E-PORT-01 第 7 點與追加變異表）。組件（`src/`）、`dist`、`script.txt`、標準圖皆無改動。
+- 驗證：修前紅（舊測試輪詢預約檔、時限 30 秒；夾具延遲 40 秒）紅，延遲 20 秒仍綠；修後同延遲 40 秒綠；變異 15 項之結果見規則帳本。
+- 已知缺口：無。`spec/evidence/` 內兩份檔含本機路徑字樣（`private-guard` 之 `WARN-LOCAL`，本輪未動該二檔，下次改動時改寫）。
 
 ## 2026-11-25 全庫連動後 `e2e-readonly-focus` E2E-005 分割預覽輪整檔轉紅（任務 tvd619）
 
@@ -53,9 +59,9 @@
 
 - 基準埠（`load` 8136、`editing` 8137、`parent-update` 8138、`readonly` 8139、`readonly-focus` 8140、`key-hint` 8141；2026-11-09 增 `preview` 8142）單一定義於 `test/tools/e2ePorts.mjs`；沒有占用時埠、行為、斷言與導入前相同（不寫 `E2E_PORT_OFFSET`、不位移）。
 - 基準埠被占用（占用者綁 `127.0.0.1`、`0.0.0.0`、`::`、`::1` 皆測）時，各流程自動換至下一個位移（+100、+200…），實際埠印入輸出（`[e2e-port]`）；`createFlow` 之 `flow.port`／`flow.origin` 於 `setup()` 後才確定；占用者 PID 不變、仍回應、被測碼打到 0 次。
-- 絕不下殺：`test/` 無任何下殺原語、不引入 `child_process`（僅單元測試與一個夾具例外）、不呼叫 `noteOwn`；預約 root 為專屬名稱（`RESERVE_ROOT`），函式庫之殘留預約下殺在本套件永不匹配（EP-004、EP-015）。
+- 絕不下殺：`test/` 無任何下殺原語、不引入 `child_process`（僅單元測試與一個夾具例外）、不呼叫 `noteOwn`（模擬另一行程之測試夾具除外）；預約 root 為專屬名稱（`RESERVE_ROOT`），函式庫之殘留預約下殺在本套件永不匹配（EP-004、EP-015）。
 - 綁定前連線檢查（`isPortAnswering`）：Windows 下占用者綁 `0.0.0.0`／`::`／`::1` 時，`listen(…,'127.0.0.1')` 不報 `EADDRINUSE` 而並存並搶走新連線，故先檢查再綁，遇占用 `reselect`（EP-008a／008b）。
-- 單元測試 23 案以真實行程與真實監聽驗證（動態基準埠、隔離預約目錄與環境，不占用 8136～8141，與並行中之 e2e 檔互不干擾）；變異 17／17 被擊殺（M1～M17，EP 對應見 `sgud/exp/experience.md`）。
+- 單元測試（2026-11-05 為 23 案，2026-11-27 起 25 案）以真實行程與真實監聽驗證（動態基準埠、隔離預約目錄與環境，不占用 8136～8141，與並行中之 e2e 檔互不干擾）；變異 17／17 被擊殺（M1～M17，EP 對應見 `sgud/exp/experience.md`）。
 - 畫面含埠（規格 E7）：本套件無（無像素標準圖，斷言不含埠）；基準埠與位移埠之宿主頁截圖 6／6 位元組全同。
 - 已知限制：①「連線檢查」與「綁定」之間仍有毫秒級窗口（無法消除）；②占用者資訊（PID）由函式庫 PowerShell 查詢，多檔並行負載下可能回「占用者查詢失敗」（不影響換埠）；③POSIX、真實 dev server 占用情境未測。
 

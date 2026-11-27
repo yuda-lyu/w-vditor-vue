@@ -129,15 +129,41 @@ function readLine(stream) {
 }
 
 
-//waitFor, 於測試行程端輪詢條件成立(偵測式等待), 逾時拋錯
-async function waitFor(label, cond, timeout = 30000) {
-    let t0 = Date.now()
-    while (!cond()) {
-        if (Date.now() - t0 > timeout) {
-            throw new Error(`逾時未見: ${label}`)
-        }
-        await new Promise((resolve) => setTimeout(resolve, 100))
+//startStaleHolder, 起夾具(另一個預約行程, 見e2ePortsStaleHolder.mjs)並讀其第一行
+//夾具於noteOwn之Promise解開(誘餌之身分已寫入預約檔, 或取樣用盡重試而失敗)後才印該行, 故「讀到該行」即同步點, 測試端不輪詢預約檔
+//tableMode為夾具之E2E_PORTS_FIXTURE_TABLE: ''=函式庫預設; 'delay:<ms>'=取行程表前先延遲(模擬全機滿載取樣慢); 'fail'=取行程表恆失敗
+async function startStaleHolder(P, regDir, tableMode = '') {
+    let env = { ...process.env }
+    delete env.E2E_PORTS_FIXTURE_TABLE
+    if (tableMode !== '') {
+        env.E2E_PORTS_FIXTURE_TABLE = tableMode
     }
+    let holder = spawn(process.execPath, [fpStaleHolder, String(P), regDir], { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true, env })
+    started.push(holder)
+    let info = JSON.parse(await readLine(holder.stdout))
+    return { holder, info }
+}
+
+
+//assertNoted, 夾具回報之noteOwn結果須為ok:true(誘餌之身分已記入預約檔); 失敗訊息帶reason
+function assertNoted(info) {
+    let noted = info && info.noted
+    assert.strictEqual(noted && noted.ok, true, `前提: 夾具之noteOwn須已記入預約檔, reason=${noted && noted.reason}: ${JSON.stringify(info)}`)
+}
+
+
+//waitExit, 等本檔自己啟動之子行程結束, 回傳離開碼; 逾ms仍未結束回傳null(僅防懸置之上限, 不作同步手段)
+function waitExit(child, ms) {
+    if (child.exitCode !== null || child.signalCode !== null) {
+        return Promise.resolve(child.exitCode)
+    }
+    return new Promise((resolve) => {
+        let t = setTimeout(() => resolve(null), ms)
+        child.once('exit', (code) => {
+            clearTimeout(t)
+            resolve(code)
+        })
+    })
 }
 
 
@@ -632,18 +658,15 @@ describe('unit-e2ePorts：e2e靜態站自動換埠', function() {
     it('EP-015 殘留預約不下殺: 同root(專案根)之殘留預約記有存活行程之身分, 本套件預約該埠時回收預約回到基準埠, 但不殺該行程', async function() {
         let P = await freeBase()
         let regDir = newRegDir()
-        let holder = spawn(process.execPath, [fpStaleHolder, String(P), regDir], { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true })
-        started.push(holder)
-        let info = JSON.parse(await readLine(holder.stdout))
+        let { holder, info } = await startStaleHolder(P, regDir)
         let decoyPid = info.decoyPid
         try {
-            //等函式庫背景取樣, 把誘餌行程(持有者之子)之身分寫入殘留預約(known); 取得前提: 預約確實記有可供下殺之身分
-            let claimer = createE2ePortClaimer({ regDir, log: () => {} })
-            await waitFor('殘留預約記有誘餌行程之身分', () => {
-                let cur = claimer.read(P)
-                return !!cur && Array.isArray(cur.known) && cur.known.some((k) => k.pid === decoyPid)
-            })
-            assert.strictEqual(claimer.read(P).root, path.resolve(process.cwd()), '前提: 殘留預約之root為專案根(舊行為下會被下殺)')
+            //同步點: 夾具以noteOwn之Promise解開(涵蓋誘餌之那次取樣已寫入殘留預約之known)後才印該行, 讀到該行後直接讀預約檔一次(不輪詢);
+            //取得前提: 預約確實記有可供下殺之身分(失敗訊息帶夾具回報之reason)
+            assertNoted(info)
+            let cur = createE2ePortClaimer({ regDir, log: () => {} }).read(P)
+            assert.ok(!!cur && Array.isArray(cur.known) && cur.known.some((k) => k.pid === decoyPid), `前提: 殘留預約須記有誘餌行程之身分, noted=${JSON.stringify(info.noted)}: ${JSON.stringify(cur)}`)
+            assert.strictEqual(cur.root, path.resolve(process.cwd()), '前提: 殘留預約之root為專案根(舊行為下會被下殺)')
             assert.notStrictEqual(path.resolve(RESERVE_ROOT), path.resolve(process.cwd()), '本套件之預約root須與專案根不同')
             //強制終止持有者(模擬taskkill /F: 不釋放預約, 不終止其子行程); 持有者是本檔自己啟動者
             forceKillChild(holder)
@@ -659,6 +682,54 @@ describe('unit-e2ePorts：e2e靜態站自動換埠', function() {
             finally {
                 r.release()
             }
+        }
+        finally {
+            terminateOwn(decoyPid)
+        }
+    })
+
+    //同步點之正確性: 全機滿載時取樣慢; 夾具之noteOwn須待涵蓋誘餌之取樣寫入預約檔後才解開, 測試端讀到夾具之行即可直接讀預約檔(不依輪詢時限)
+    //延遲只經夾具之正式注入點(opt.tableAsync); 修前紅(輪詢預約檔、時限30秒)之證明用延遲40秒, 見sgud/exp/experience.md
+    it('EP-016 取樣延遲: 取行程表被延遲時, 夾具仍待預約檔已記有誘餌之身分才印行; 讀到該行即可讀預約檔一次(不依輪詢時限)', async function() {
+        let P = await freeBase()
+        let regDir = newRegDir()
+        let DELAY = 4000
+        let { holder, info } = await startStaleHolder(P, regDir, `delay:${DELAY}`)
+        let decoyPid = info.decoyPid
+        try {
+            //前提(語意, 不斷言時刻): 注入之延遲取表確已完成才印行(夾具回報tableDone為已完成之次數), 否則下列讀預約檔不再有鑑別力(未注入或未等待皆為0)
+            assert.ok(info.tableDone >= 1, `前提: 夾具須待注入之取樣(延遲${DELAY}ms)完成才印行, tableDone=${info.tableDone}: ${JSON.stringify(info)}`)
+            assertNoted(info)
+            let cur = createE2ePortClaimer({ regDir, log: () => {} }).read(P)
+            assert.ok(!!cur && Array.isArray(cur.known) && cur.known.some((k) => k.pid === decoyPid), `讀到夾具之行時預約檔須已記有誘餌行程之身分, noted=${JSON.stringify(info.noted)}: ${JSON.stringify(cur)}`)
+        }
+        finally {
+            forceKillChild(holder)
+            await waitExit(holder, 30000)
+            terminateOwn(decoyPid)
+        }
+    })
+
+    //取樣失敗如實告知: 不把「未記入」當成功; 夾具印失敗行並以非0結束, 測試端以reason說明原因
+    it('EP-017 取樣失敗: 取行程表恆失敗時, noteOwn用盡有界重試回ok:false(table-failed), 夾具印失敗行(帶reason)、不印成功行並以非0結束, 預約檔不記誘餌之身分; assertNoted對ok:false拋錯並帶reason', async function() {
+        //assertNoted本身之鑑別力: ok:true通過; ok:false、缺noted皆拋錯, 訊息帶reason
+        assert.doesNotThrow(() => assertNoted({ noted: { ok: true, attempts: 1, reason: 'recorded' } }))
+        assert.throws(() => assertNoted({ noted: { ok: false, attempts: 3, reason: 'table-failed' } }), /reason=table-failed/)
+        assert.throws(() => assertNoted({ pid: 1 }), /前提: 夾具之noteOwn須已記入預約檔/)
+        let P = await freeBase()
+        let regDir = newRegDir()
+        let { holder, info } = await startStaleHolder(P, regDir, 'fail')
+        let decoyPid = info.decoyPid
+        try {
+            assert.strictEqual(info.error, 'note-failed', `夾具須印失敗行而非成功行: ${JSON.stringify(info)}`)
+            assert.strictEqual(info.reason, 'table-failed', `失敗行須帶reason: ${JSON.stringify(info)}`)
+            assert.strictEqual(info.noted && info.noted.ok, false, `失敗行之noted.ok須為false: ${JSON.stringify(info)}`)
+            assert.throws(() => assertNoted(info), /reason=table-failed/)
+            //夾具以非0結束(自行結束; 30秒僅防懸置之上限)
+            assert.strictEqual(await waitExit(holder, 30000), 1, '夾具須以離開碼1結束')
+            //未記入: 預約檔(夾具結束時已釋放, 或未記有誘餌)不得記有誘餌之身分
+            let cur = createE2ePortClaimer({ regDir, log: () => {} }).read(P)
+            assert.ok(!cur || !Array.isArray(cur.known) || !cur.known.some((k) => k.pid === decoyPid), `取樣失敗時預約檔不得記有誘餌之身分: ${JSON.stringify(cur)}`)
         }
         finally {
             terminateOwn(decoyPid)

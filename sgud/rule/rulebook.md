@@ -15,7 +15,7 @@
 | 文件 fixture | `test/host/docs.json`（宿主頁與測試端讀同一檔） |
 | w-screenctl | 未使用 |
 | e2e 執行 | 全跑 `npm test`（`mocha --parallel "test/*.test.mjs" --timeout 180000`）；單檔 `npx mocha test/e2e-<流程代號>.test.mjs --reporter list --timeout 180000`；單案 `--grep "E2E-00N \[所見即所得\]"` |
-| 共用實作 | `test/tools/e2eLib.mjs` 單一橋接 → `w-package-tools-e2e` 1.0.22（`launchBrowser`、`waitUntilExist`、`pollUntil`、`createKnownDefect`、`reserveE2ePorts`、`describePortOwners`）；`test/tools/e2e-setup.mjs` 只留專案組態與專案原語；埠相關（基準埠、預約、綁定）集中於 `test/tools/e2ePorts.mjs` |
+| 共用實作 | `test/tools/e2eLib.mjs` 單一橋接 → `w-package-tools-e2e` 1.0.22（`launchBrowser`、`waitUntilExist`、`pollUntil`、`createKnownDefect`、`reserveE2ePorts`、`describePortOwners`；另轉出 `createE2ePortClaimer`、`pidExists` 供單元測試、`listProcessTable` 供殘留預約夾具）；`test/tools/e2e-setup.mjs` 只留專案組態與專案原語；埠相關（基準埠、預約、綁定）集中於 `test/tools/e2ePorts.mjs` |
 
 ### 契約映射
 
@@ -82,15 +82,17 @@
 - **規則**：
   1. 基準埠（≥ 8000、寫死不隨機）只定義於 `test/tools/e2ePorts.mjs` 之 `FLOW_PORTS`；其他程式碼不得出現基準埠字面，也不得寫死「主機:埠」。實際埠一律來自 `reserveFlowPort`（`reserveE2ePorts([基準埠], { applyEnv: false, avoid: OTHER_TEST_PORTS })`）之 `portOf`。
   2. 靜態站只經 `listenReserved` 綁定：綁定前以 `isPortAnswering`（對 `127.0.0.1`、`::1` 發新連線，不送請求）確認無人接聽，已有人接聽或綁定遇 `EADDRINUSE` 即 `reselect` 換下一個位移；重選用盡拋 `E2E_PORT_EXHAUSTED` 並於訊息寫明被占用之埠與占用者。
-  3. **絕不下殺占用者**：`test/`、`test/tools/` 無任何下殺原語（依埠、依名稱、依命令列），且不呼叫 `noteOwn`（函式庫之殘留下殺只依 `noteOwn` 記下之身分；不記錄就不會殺）。
+  3. **絕不下殺占用者**：`test/`、`test/tools/` 無任何下殺原語（依埠、依名稱、依命令列），且不呼叫 `noteOwn`（函式庫之殘留下殺只依 `noteOwn` 記下之身分；不記錄就不會殺）。唯一例外為測試夾具 `test/tools/e2ePortsStaleHolder.mjs`（模擬另一行程之 `noteOwn`，只被 `unit-e2ePorts.test.mjs` 引用，EP-004 守護）。
   4. 沒有占用時即基準埠、不寫 `E2E_PORT_OFFSET`、不位移，埠與行為同導入前；有占用時實際埠印入輸出（`[e2e-port]`）。
   5. `OTHER_TEST_PORTS`（本套件其他測試寫死之埠）須與實際一致；實查為空（本套件除七個流程靜態站外無任何寫死之埠）。
   6. 畫面含埠之流程（規格 E7）：本套件無（無像素標準圖；斷言不含埠；`popup.url().endsWith('/node_modules/vditor/package.json')` 與埠無關）。日後新增含埠畫面之流程，須依規格 E7 擇一：比對端覆蓋（`overlayRegions`）或 `reserveE2ePorts(…, { baseOnly: true })`。
+  7. **夾具以 `noteOwn` 之 Promise 為同步點**（2026-11-27 v674；w-package-tools-e2e ≥ 1.0.60）：夾具 `await r.noteOwn(decoy)`，回傳之 `ok` 為 `true`（涵蓋誘餌之那次取樣已寫入預約檔）才印成功行（含 `noted`）；否則印失敗行（`error:'note-failed'`、`reason`）並以離開碼 1 結束。測試端（EP-015、EP-016）讀到該行即同步，只讀預約檔一次、不輪詢預約檔（全機滿載取樣慢時不依輪詢時限）；失敗訊息帶 `reason`。取樣延遲、失敗只經夾具內之環境變數 `E2E_PORTS_FIXTURE_TABLE`（`delay:<毫秒>`、`fail`）注入函式庫之正式注入點 `opt.tableAsync`，正式 e2e 流程不經夾具、不受影響；延遲後取真實行程表（`listProcessTable`，使記下之身分為真實起始時間，EP-015 之不下殺斷言不變弱）。夾具於等待 Promise 期間須自行保持事件迴圈（函式庫之計時器與背景查詢皆 `unref`）。
 - **盤點指令**（可重跑；EP-002～EP-004 以程式守護同一內容）：
   1. `Grep "localhost:|127\.0\.0\.1:" test/` → 命中者皆由實際埠衍生：`e2e-setup.mjs` 之 `127.0.0.1:${port}`，與 `unit-e2ePorts.test.mjs` 內由動態空閒埠 P 衍生之期望值；EP-002 以「`:` 後為數字字面」守護（`:${…}` 不算）。
-  2. `Grep "taskkill|Stop-Process|process\.kill|\.kill\(|wmic|netstat|killPortListeners|killOwnListeners|noteOwn" test/ spec/ toolg/` → 僅 `unit-e2ePorts.test.mjs` 以 `child.kill()` 收尾自己啟動之測試子行程；其餘 0 命中。
+  2. `Grep "taskkill|Stop-Process|process\.kill|\.kill\(|wmic|netstat|killPortListeners|killOwnListeners|noteOwn" test/ spec/ toolg/` → 僅 `unit-e2ePorts.test.mjs` 以 `child.kill()` 收尾自己啟動之測試子行程（`.kill(` 恰 2 處，EP-004 釘住）與夾具 `e2ePortsStaleHolder.mjs`（`noteOwn`，唯一例外）；其餘 0 命中。
   3. `Grep "\.listen\(" test/` → 僅 `tools/e2ePorts.mjs`（`listenOnce`）、`tools/e2ePortsOccupier.mjs`（測試用占用者）與 `unit-e2ePorts.test.mjs`（空閒埠探測）。
   4. `Grep "813[6-9]|814[0-2]" test/` → 僅 `tools/e2ePorts.mjs`（與註解中之埠範圍字樣，如 `unit-e2ePorts.test.mjs` 檔頭）。
+  5. `Grep "noteOwn" test/` → 呼叫僅夾具之 `await r.noteOwn(decoy)`（漏 `await` 即缺陷，變異 F1 由 EP-015、EP-016、EP-017 擊殺）；其餘為註解與 `unit-e2ePorts.test.mjs` 內之守護正規式、訊息與案名（EP-004、assertNoted）；`Grep "waitFor\(" test/unit-e2ePorts.test.mjs` → 0（預約檔不再輪詢；e2e 檔之 `waitFor(` 為 Playwright `locator.waitFor`，非本項）。
 - **站點全集與判準**（2026-11-05 實查）：
 
 | 站點 | 現況（導入前 → 導入後） | 判定 |
@@ -102,7 +104,7 @@
 | 逐檔 runner（`killPortListeners`→`killOwnListeners`） | 本套件無 runner | 不適用 |
 | 其他測試寫死之埠（`avoid`） | 0 處 | `OTHER_TEST_PORTS = []`，EP-003 守護 |
 
-- **對應測試**：`test/unit-e2ePorts.test.mjs`（EP-001～EP-014；真實行程與真實監聽，動態期望，與同一 `mocha --parallel` 中之 e2e 檔互不干擾）。單檔指令：`node node_modules/mocha/bin/mocha.js test/unit-e2ePorts.test.mjs --reporter spec --timeout 180000`。
+- **對應測試**：`test/unit-e2ePorts.test.mjs`（EP-001～EP-017；真實行程與真實監聽，動態期望，與同一 `mocha --parallel` 中之 e2e 檔互不干擾；EP-015 殘留預約不下殺、EP-016 取樣延遲下之同步點、EP-017 取樣失敗如實告知）。單檔指令：`node node_modules/mocha/bin/mocha.js test/unit-e2ePorts.test.mjs --reporter spec --timeout 180000`。
 - **變異證明**（2026-11-05；暫時改碼 → 跑 `unit-e2ePorts` → 還原並以雜湊回驗；17／17 擊殺）：
 
 | 變異 | 擊殺（轉紅）之案例 |
@@ -126,6 +128,25 @@
 | M17 `e2e-setup` 呼叫 `noteOwn` | EP-004 |
 
   變異腳本（逐一以唯一字串替換 → 跑 `unit-e2ePorts` → 還原並比對雜湊）與結果存於該輪任務證據夾，不入庫；重做時對上表每列之「變異」重現即可。
+
+- **追加變異證明**（2026-11-27 v674；於暫存副本 `./tmp/<任務>/mut/<id>/test/` 套用、每個錨點須恰命中 1 次，不動 repo；跑 EP-004、015、016、017）：
+
+| 變異 | 擊殺（轉紅）之案例 |
+|---|---|
+| F1 夾具不 `await noteOwn`（立即印成功行） | EP-015、EP-016、EP-017 |
+| F2 夾具不檢 `ok`（一律印成功行） | EP-017 |
+| F3 失敗行不帶 `reason` | EP-017 |
+| F4 失敗不以非 0 結束 | EP-017 |
+| F5 夾具之延遲注入無效 | EP-016（前提斷言：夾具回報 `tableDone ≥ 1`，即注入之延遲取表確已完成才印行；語意判定，不斷言時刻） |
+| F6 夾具不自行保持事件迴圈 | EP-015、EP-017（行程於 Promise 解開前結束，未見一行） |
+| T1 測試端 `assertNoted` 不檢 `ok` | EP-017（assertNoted 自檢） |
+| M15 預約 root 改回專案根 | EP-015（誘餌行程被函式庫下殺；改寫後仍有鑑別力） |
+| T2 EP-015 不斷言預約檔記有誘餌 | 單獨存活（與 EP-016 之同一斷言互為備援）；組合 F1+T2：EP-015 轉綠、EP-016 紅，證 F1 單獨時 EP-015 係由該斷言擊殺 |
+| T4 EP-016 不斷言預約檔記有誘餌 | 單獨存活；F1+T4：EP-016 由延遲前提斷言擊殺 |
+| T5 EP-016 不斷言 `tableDone ≥ 1`（延遲取表已完成） | 單獨存活；F1+T5：EP-016 由預約檔斷言擊殺；F5 則只有該斷言能擊殺 |
+| F2+T1 夾具與測試端皆不檢 `ok` | EP-017（`info.error` 與 assertNoted 自檢，成對移除仍紅） |
+
+  修前紅（舊測試輪詢預約檔、時限 30 秒；夾具以 `delay:<ms>` 注入延遲、不 await）：無延遲 綠 1.3 秒；延遲 20 秒 綠；延遲 40 秒 紅（`逾時未見: 殘留預約記有誘餌行程之身分`，39 秒）。修後（EP-015、EP-016 之夾具皆延遲 40 秒）：綠（各 42.0、41.7 秒）。EP-016 之 4 秒延遲為常設，修前紅證據用 40 秒。夾具之成功行含 `tableDone`（經 `delay` 注入之取行程表已完成之次數），測試以其語意確認「延遲取樣已完成」，不以耗時斷言（計時器規格：事件同步、不斷言時刻）。
 
 ### R-02 分割預覽（vditor ≥ 4 之 textarea 編輯區）之唯讀、貼上與提示區（2026-11-09 vd01，ADR-009）
 
